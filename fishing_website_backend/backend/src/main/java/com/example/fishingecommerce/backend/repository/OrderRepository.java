@@ -20,4 +20,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderCode(String orderCode);
     List<Order> findByAssignedShipperIdAndStatusOrderByCreatedAtAsc(Long shipperId, OrderStatus status);
     List<Order> findByAssignedShipperIdOrderByUpdatedAtDesc(Long shipperId);
+    List<Order> findByStatusAndDeliveredAtLessThanEqual(OrderStatus status, LocalDateTime deliveredBefore);
 }

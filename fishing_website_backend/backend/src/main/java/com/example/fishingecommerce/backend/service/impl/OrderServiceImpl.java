@@ -14,6 +14,7 @@ import com.example.fishingecommerce.backend.entity.Order;
 import com.example.fishingecommerce.backend.entity.OrderItem;
 import com.example.fishingecommerce.backend.entity.ProductVariant;
 import com.example.fishingecommerce.backend.entity.ShippingEvent;
+import com.example.fishingecommerce.backend.entity.UserNotification;
 import com.example.fishingecommerce.backend.enums.OrderStatus;
 import com.example.fishingecommerce.backend.enums.PaymentStatus;
 import com.example.fishingecommerce.backend.exceptions.AppException;
@@ -21,6 +22,7 @@ import com.example.fishingecommerce.backend.repository.CouponRepository;
 import com.example.fishingecommerce.backend.repository.OrderRepository;
 import com.example.fishingecommerce.backend.repository.ProductVariantRepository;
 import com.example.fishingecommerce.backend.repository.ShippingEventRepository;
+import com.example.fishingecommerce.backend.repository.UserNotificationRepository;
 import com.example.fishingecommerce.backend.service.OrderService;
 import com.example.fishingecommerce.backend.service.PayOSPaymentService;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,7 @@ public class OrderServiceImpl implements OrderService {
     private final CouponRepository couponRepository;
     private final PayOSPaymentService payOSPaymentService;
     private final ShippingEventRepository shippingEventRepository;
+    private final UserNotificationRepository notificationRepository;
 
     @Override
     @Transactional
@@ -375,6 +378,13 @@ public class OrderServiceImpl implements OrderService {
                         ? "Shipper đã giao hàng, có ảnh giao hàng và ảnh thu tiền COD; chờ khách hàng xác nhận"
                         : "Shipper đã giao hàng và có ảnh xác nhận; chờ khách hàng xác nhận",
                 "SHIPPER");
+        notificationRepository.save(UserNotification.builder()
+                .user(saved.getUser())
+                .type("info")
+                .message("Đơn " + saved.getOrderCode()
+                        + " đã được shipper giao. Vui lòng xác nhận đã nhận hàng hoặc báo chưa nhận trong 2 giờ. "
+                        + "Sau thời hạn này hệ thống sẽ tự động xác nhận.")
+                .build());
         return mapToResponse(saved);
     }
 
@@ -393,6 +403,12 @@ public class OrderServiceImpl implements OrderService {
         Order saved = orderRepository.saveAndFlush(order);
         recordShippingEvent(saved, OrderStatus.COMPLETED,
                 "Khách hàng xác nhận đã nhận đủ hàng; đơn hàng hoàn thành cho hai bên", "CUSTOMER");
+        notificationRepository.save(UserNotification.builder()
+                .user(saved.getUser())
+                .type("success")
+                .message("Bạn đã xác nhận nhận đơn " + saved.getOrderCode()
+                        + ". Đơn hàng đã hoàn thành và bạn có thể đánh giá sản phẩm.")
+                .build());
         return mapToCustomerOrderResponse(saved);
     }
 

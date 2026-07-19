@@ -40,6 +40,7 @@ interface OrderItem {
 interface Order {
   id: string;
   rawStatus: string;
+  deliveredAt?: string;
   date: string;
   total: string;
   status: string;
@@ -130,6 +131,7 @@ export default function ProfileDashboard() {
     setOrders(data.map((ord: any) => ({
       id: String(ord.id),
       rawStatus: ord.status,
+      deliveredAt: ord.deliveredAt,
       date: ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('vi-VN') : '',
       total: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
         .format(Number(ord.totalAmount || 0)),
@@ -720,6 +722,14 @@ export default function ProfileDashboard() {
                         </div>
 
                         {/* Order Items */}
+                        {order.rawStatus === 'DELIVERED' && order.deliveredAt && (
+                          <div className="mx-md mt-md rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-800 text-left">
+                            <strong>Vui lòng xác nhận nhận hàng trong 2 giờ.</strong>{' '}
+                            Nếu không có phản hồi, hệ thống sẽ tự động xác nhận vào{' '}
+                            {new Date(new Date(order.deliveredAt).getTime() + 2 * 60 * 60 * 1000).toLocaleString('vi-VN')}.
+                          </div>
+                        )}
+
                         <div className="p-md divide-y divide-outline-variant/20">
                           {order.items.map((item) => (
                             <div key={item.id} className="flex gap-sm py-sm first:pt-0 last:pb-0 text-left">

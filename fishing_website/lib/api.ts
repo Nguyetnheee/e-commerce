@@ -207,6 +207,11 @@ export const reviewApi = {
   }),
 };
 
+export const notificationApi = {
+  getMine: () => fetchAPI('/api/v1/notifications/me'),
+  markAllRead: () => fetchAPI('/api/v1/notifications/read-all', { method: 'POST' }),
+};
+
 // Admin Management endpoints
 export const adminApi = {
   getReviews: (page = 0, size = 50) => fetchAPI(`/api/v1/admin/reviews?page=${page}&size=${size}`),

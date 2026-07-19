@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, BellRing, X, CheckCircle2, AlertCircle, Info, Trash2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { notificationApi } from '../lib/api';
 
 interface ToastItem {
   id: string;
@@ -82,6 +83,33 @@ export default function ToastAndBell() {
       };
     }
   }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const loadServerNotifications = async () => {
+      try {
+        const items = await notificationApi.getMine();
+        if (Array.isArray(items)) {
+          setNotifications(items.map((item: any) => ({
+            id: `server-${item.id}`,
+            message: item.message,
+            type: item.type === 'success' || item.type === 'error' ? item.type : 'info',
+            timestamp: item.createdAt
+              ? new Date(item.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+              : '',
+            read: Boolean(item.read),
+          })));
+        }
+      } catch (error) {
+        console.error('Không thể tải thông báo từ máy chủ:', error);
+      }
+    };
+
+    loadServerNotifications();
+    const intervalId = window.setInterval(loadServerNotifications, 30000);
+    return () => window.clearInterval(intervalId);
+  }, [isLoggedIn, pathname]);
 
   // Persistent notifications history in localStorage
   useEffect(() => {
@@ -177,6 +205,7 @@ export default function ToastAndBell() {
   const markAllAsRead = () => {
     const updated = notifications.map(n => ({ ...n, read: true }));
     saveNotifications(updated);
+    notificationApi.markAllRead().catch(() => undefined);
   };
 
   const clearAllNotifications = () => {
