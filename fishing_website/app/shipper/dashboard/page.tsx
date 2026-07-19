@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { adminApi } from '../../../lib/api';
-import ConfirmModal from '../../../components/ConfirmModal';
+import { shipperApi } from '../../../lib/api';
 import { 
   LogOut, 
   Truck, 
@@ -11,11 +10,16 @@ import {
   Phone, 
   Navigation, 
   CheckCircle, 
-  XCircle, 
   DollarSign, 
   Award,
-  ThumbsUp
+  ThumbsUp,
+  Camera,
+  UploadCloud,
+  X
 } from 'lucide-react';
+
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dziemd19e';
+const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'e-commerce';
 
 export default function ShipperDashboardPage() {
   const router = useRouter();
@@ -28,33 +32,24 @@ export default function ShipperDashboardPage() {
   
   // Interactive shipments list
   const [shipments, setShipments] = useState<any[]>([]);
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    isPrompt?: boolean;
-    promptPlaceholder?: string;
-    promptValue?: string;
-    onConfirm: (val?: string) => void;
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: () => {}
-  });
+  const [deliveryOrder, setDeliveryOrder] = useState<any | null>(null);
+  const [proofImageUrl, setProofImageUrl] = useState('');
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [completingDelivery, setCompletingDelivery] = useState(false);
 
   const fetchShipments = async () => {
     try {
-      const data = await adminApi.getOrders('SHIPPING');
+      const data = await shipperApi.getAssignedOrders();
       if (Array.isArray(data)) {
         const mapped = data.map((o: any) => ({
           id: `#${o.id}`,
           rawId: o.id,
-          name: o.receiverName,
-          phone: o.receiverPhone,
+          name: o.recipientName,
+          phone: o.recipientPhone,
           address: o.shippingAddress,
-          cod: o.totalPrice ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(o.totalPrice) : '0 ₫',
-          rawCod: o.totalPrice || 0,
+          cod: o.totalAmount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(o.totalAmount) : '0 ₫',
+          rawCod: o.totalAmount || 0,
+          items: o.items || [],
           status: 'Đang giao'
         }));
         setShipments(mapped);
@@ -81,13 +76,13 @@ export default function ShipperDashboardPage() {
         } else {
           setUserEmail(user.email);
           setLoading(false);
+          fetchShipments();
         }
       } catch (e) {
         localStorage.removeItem('user_session');
         router.push('/admin-login');
       }
     }
-    fetchShipments();
   }, [router]);
 
   const handleLogout = () => {
@@ -95,51 +90,55 @@ export default function ShipperDashboardPage() {
     router.push('/admin-login');
   };
 
-  const handleDeliverySuccess = async (id: string, rawId: number | string, codAmount: number) => {
+  const handleDeliverySuccess = (shipment: any) => {
+    setDeliveryOrder(shipment);
+    setProofImageUrl('');
+  };
+
+  const handleProofFile = async (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn đúng tệp hình ảnh.');
+      return;
+    }
+    setUploadingProof(true);
     try {
-      await adminApi.updateOrderStatus(rawId, 'DELIVERED');
-      alert(`Đã cập nhật trạng thái đơn ${id}: GIAO THÀNH CÔNG.`);
-      setDeliveredCount(prev => prev + 1);
-      setEarnings(prev => prev + 45000 + (codAmount > 0 ? 10000 : 0));
-      setShipments(prev => prev.map(ship => {
-        if (ship.id === id) {
-          return { ...ship, status: 'Thành công' };
-        }
-        return ship;
-      }));
-    } catch (err: any) {
-      alert('Lỗi cập nhật trạng thái: ' + (err.message || err));
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) throw new Error('Không thể tải ảnh xác nhận.');
+      const data = await response.json();
+      setProofImageUrl(data.secure_url);
+    } catch (error: any) {
+      alert(error.message || 'Tải ảnh xác nhận thất bại.');
+    } finally {
+      setUploadingProof(false);
     }
   };
 
-  const handleDeliveryFail = (id: string, rawId: number | string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Báo cáo giao hàng thất bại',
-      message: `Nhập lý do giao hàng thất bại cho đơn ${id} (ví dụ: Khách hẹn ngày khác, Không liên lạc được):`,
-      isPrompt: true,
-      promptPlaceholder: 'Nhập lý do giao hàng thất bại...',
-      promptValue: '',
-      onConfirm: async (reason) => {
-        if (!reason || !reason.trim()) {
-          alert('Vui lòng nhập lý do giao hàng thất bại!');
-          return;
-        }
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        try {
-          await adminApi.updateOrderStatus(rawId, 'CANCELLED');
-          alert(`Đã cập nhật trạng thái đơn ${id}: GIAO THẤT BẠI. Lý do: ${reason || 'Không có lý do'}. Đơn sẽ được chuyển hoàn về KHO.`);
-          setShipments(prev => prev.map(ship => {
-            if (ship.id === id) {
-              return { ...ship, status: 'Thất bại' };
-            }
-            return ship;
-          }));
-        } catch (err: any) {
-          alert('Lỗi cập nhật trạng thái: ' + (err.message || err));
-        }
-      }
-    });
+  const confirmDeliverySuccess = async () => {
+    if (!deliveryOrder || !proofImageUrl) {
+      alert('Bắt buộc chụp hoặc tải ảnh xác nhận đã giao hàng.');
+      return;
+    }
+    setCompletingDelivery(true);
+    try {
+      await shipperApi.completeDelivery(deliveryOrder.rawId, proofImageUrl);
+      alert(`Đã cập nhật trạng thái đơn ${deliveryOrder.id}: GIAO THÀNH CÔNG.`);
+      setDeliveredCount(prev => prev + 1);
+      setEarnings(prev => prev + 45000 + (deliveryOrder.rawCod > 0 ? 10000 : 0));
+      setDeliveryOrder(null);
+      setProofImageUrl('');
+      await fetchShipments();
+    } catch (err: any) {
+      alert('Lỗi cập nhật trạng thái: ' + (err.message || err));
+    } finally {
+      setCompletingDelivery(false);
+    }
   };
 
   if (loading) {
@@ -338,15 +337,7 @@ export default function ShipperDashboardPage() {
                         </button>
                         
                         <button
-                          onClick={() => handleDeliveryFail(ship.id, ship.rawId)}
-                          className="flex items-center gap-1 bg-error-container hover:bg-error/15 text-error font-bold text-[11px] px-2.5 py-1.5 rounded-lg border border-error/20 transition-colors cursor-pointer"
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span>Giao thất bại</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleDeliverySuccess(ship.id, ship.rawId, ship.rawCod)}
+                          onClick={() => handleDeliverySuccess(ship)}
                           className="flex items-center gap-1 bg-secondary hover:bg-secondary/90 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg transition-colors cursor-pointer shadow-sm"
                         >
                           <CheckCircle className="w-3.5 h-3.5" />
@@ -432,16 +423,68 @@ export default function ShipperDashboardPage() {
         WildStream Gear Logistics Delivery Portal &copy; 2026. Driver dispatch terminal.
       </footer>
 
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        isPrompt={confirmModal.isPrompt}
-        promptPlaceholder={confirmModal.promptPlaceholder}
-        promptValue={confirmModal.promptValue}
-        onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-      />
+      {deliveryOrder && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-sm">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-md md:p-lg shadow-2xl text-left max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-outline-variant/20 pb-sm">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700">Xác nhận giao hàng</span>
+                <h2 className="text-headline-sm font-black mt-1">Đơn {deliveryOrder.id}</h2>
+              </div>
+              <button type="button" onClick={() => setDeliveryOrder(null)} className="p-1.5 rounded-full hover:bg-slate-100 text-outline">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="my-sm text-label-sm">
+              <p className="font-bold">{deliveryOrder.name}</p>
+              <p className="text-on-surface-variant">{deliveryOrder.address}</p>
+            </div>
+
+            <div className="border border-outline-variant/20 rounded-xl divide-y divide-outline-variant/10 mb-sm">
+              {deliveryOrder.items?.map((item: any) => (
+                <div key={item.id} className="p-xs flex justify-between text-label-sm">
+                  <span>{item.productName} × {item.quantity}</span>
+                  <span className="font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((item.soldPrice || 0) * item.quantity)}</span>
+                </div>
+              ))}
+            </div>
+
+            <label className="block border-2 border-dashed border-amber-300 hover:border-amber-600 rounded-2xl p-sm text-center cursor-pointer bg-amber-50/40">
+              {proofImageUrl ? (
+                <img src={proofImageUrl} alt="Ảnh xác nhận giao hàng" className="w-full max-h-64 object-contain rounded-xl" />
+              ) : (
+                <div className="py-md">
+                  {uploadingProof ? <UploadCloud className="w-10 h-10 animate-bounce text-amber-600 mx-auto" /> : <Camera className="w-10 h-10 text-amber-600 mx-auto" />}
+                  <p className="font-bold mt-xs">{uploadingProof ? 'Đang tải ảnh...' : 'Chụp ảnh hàng đã giao'}</p>
+                  <p className="text-[11px] text-on-surface-variant mt-1">Bắt buộc có ảnh trước khi xác nhận thành công</p>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={uploadingProof}
+                onChange={(event) => handleProofFile(event.target.files?.[0])}
+                className="hidden"
+              />
+            </label>
+
+            <div className="flex justify-end gap-sm mt-md">
+              <button type="button" onClick={() => setDeliveryOrder(null)} className="px-md py-2.5 bg-slate-100 rounded-xl font-bold">Hủy</button>
+              <button
+                type="button"
+                onClick={confirmDeliverySuccess}
+                disabled={!proofImageUrl || uploadingProof || completingDelivery}
+                className="px-md py-2.5 bg-secondary hover:bg-secondary/90 disabled:opacity-50 text-white rounded-xl font-bold"
+              >
+                {completingDelivery ? 'ĐANG XÁC NHẬN...' : 'XÁC NHẬN ĐÃ GIAO'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

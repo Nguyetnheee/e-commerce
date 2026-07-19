@@ -25,6 +25,11 @@ public class OrderDetailResponse {
     private BigDecimal totalAmount;
     private BigDecimal discountAmount;
     private String cancelReason;
+    private Long assignedShipperId;
+    private String assignedShipperName;
+    private String assignedShipperEmail;
+    private String deliveryProofImage;
+    private LocalDateTime deliveredAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<OrderItemResponse> items;

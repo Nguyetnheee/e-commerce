@@ -2,6 +2,7 @@ package com.example.fishingecommerce.backend.controller;
 
 import com.example.fishingecommerce.backend.dto.request.CancelOrderRequest;
 import com.example.fishingecommerce.backend.dto.request.UpdateOrderStatusRequest;
+import com.example.fishingecommerce.backend.dto.request.AssignShipperRequest;
 import com.example.fishingecommerce.backend.dto.response.OrderDetailResponse;
 import com.example.fishingecommerce.backend.enums.OrderStatus;
 import com.example.fishingecommerce.backend.service.OrderService;
@@ -51,5 +52,13 @@ public class AdminOrderController {
             @PathVariable Long id,
             @Valid @RequestBody CancelOrderRequest request) {
         return ResponseEntity.ok(orderService.cancelOrder(id, request));
+    }
+
+    @PostMapping("/{id}/approve")
+    @Operation(summary = "Phê duyệt và gán shipper", description = "Phê duyệt đơn hàng, gán shipper và chuyển sang trạng thái đóng gói")
+    public ResponseEntity<OrderDetailResponse> approveAndAssignShipper(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignShipperRequest request) {
+        return ResponseEntity.ok(orderService.approveAndAssignShipper(id, request.getShipperId()));
     }
 }

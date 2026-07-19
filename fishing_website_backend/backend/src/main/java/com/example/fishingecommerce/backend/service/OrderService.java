@@ -20,4 +20,7 @@ public interface OrderService {
     OrderTrackingResponse getOrderTracking(String orderCode, Long userId);
     PaymentStatusResponse getPaymentStatus(String orderCode, Long userId);
     String recreatePaymentLink(String orderCode, Long userId);
+    OrderDetailResponse approveAndAssignShipper(Long orderId, Long shipperId);
+    List<OrderDetailResponse> getAssignedDeliveries(Long shipperId);
+    OrderDetailResponse completeDelivery(Long orderId, Long shipperId, String proofImageUrl);
 }

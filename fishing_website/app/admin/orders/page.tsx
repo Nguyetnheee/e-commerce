@@ -21,6 +21,7 @@ import ConfirmModal from '../../../components/ConfirmModal';
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
+  const [shippers, setShippers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
@@ -42,6 +43,7 @@ export default function AdminOrdersPage() {
   // Detail Modal
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [approvalOrder, setApprovalOrder] = useState<any | null>(null);
+  const [selectedShipperId, setSelectedShipperId] = useState('');
   
   // Actions loading state
   const [updatingId, setUpdatingId] = useState<number | string | null>(null);
@@ -49,9 +51,12 @@ export default function AdminOrdersPage() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const data = await adminApi.getOrders();
+      const [data, staff] = await Promise.all([adminApi.getOrders(), adminApi.getAllAdmins()]);
       if (Array.isArray(data)) {
         setOrders(data);
+      }
+      if (Array.isArray(staff)) {
+        setShippers(staff.filter((user: any) => user.roles?.includes('SHIPPER') && user.status === 'ACTIVE'));
       }
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -70,6 +75,7 @@ export default function AdminOrdersPage() {
       if (order) {
         setSelectedOrder(null);
         setApprovalOrder(order);
+        setSelectedShipperId(order.assignedShipperId ? String(order.assignedShipperId) : '');
       }
       return;
     }
@@ -106,10 +112,14 @@ export default function AdminOrdersPage() {
 
   const confirmApproval = async () => {
     if (!approvalOrder) return;
+    if (!selectedShipperId) {
+      alert('Vui lòng chọn shipper phụ trách giao đơn.');
+      return;
+    }
     const orderId = approvalOrder.id;
     try {
       setUpdatingId(orderId);
-      await adminApi.updateOrderStatus(orderId, 'PACKING');
+      await adminApi.approveOrder(orderId, selectedShipperId);
       setApprovalOrder(null);
       await loadOrders();
       alert('Đã phê duyệt đơn hàng và chuyển sang trạng thái đóng gói.');
@@ -518,6 +528,25 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
+            <div className="mb-md">
+              <label className="text-label-sm font-bold text-on-surface block mb-xs">Gán shipper phụ trách *</label>
+              <select
+                value={selectedShipperId}
+                onChange={(event) => setSelectedShipperId(event.target.value)}
+                className="w-full bg-slate-50 border border-outline-variant/30 rounded-xl px-sm py-3 focus:outline-none focus:border-primary"
+              >
+                <option value="">-- Chọn shipper đang hoạt động --</option>
+                {shippers.map((shipper) => (
+                  <option key={shipper.id} value={shipper.id}>
+                    {shipper.fullname} ({shipper.email})
+                  </option>
+                ))}
+              </select>
+              {shippers.length === 0 && (
+                <p className="text-[11px] text-error mt-1">Chưa có tài khoản SHIPPER đang hoạt động. Hãy tạo tài khoản shipper trước.</p>
+              )}
+            </div>
+
             <div className="border border-outline-variant/20 rounded-xl divide-y divide-outline-variant/10">
               {approvalOrder.items?.map((item: any) => (
                 <div key={item.id} className="p-sm flex justify-between gap-sm text-label-sm">
@@ -544,7 +573,7 @@ export default function AdminOrdersPage() {
             </p>
             <div className="flex justify-end gap-sm mt-md">
               <button type="button" onClick={() => setApprovalOrder(null)} className="px-md py-2.5 rounded-xl bg-slate-100 font-bold">Quay lại</button>
-              <button type="button" onClick={confirmApproval} disabled={updatingId === approvalOrder.id} className="px-md py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold">
+              <button type="button" onClick={confirmApproval} disabled={updatingId === approvalOrder.id || !selectedShipperId} className="px-md py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold">
                 {updatingId === approvalOrder.id ? 'ĐANG PHÊ DUYỆT...' : 'XÁC NHẬN PHÊ DUYỆT'}
               </button>
             </div>

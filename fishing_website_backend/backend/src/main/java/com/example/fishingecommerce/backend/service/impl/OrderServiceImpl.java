@@ -254,6 +254,60 @@ public class OrderServiceImpl implements OrderService {
         return checkoutUrl;
     }
 
+    @Override
+    @Transactional
+    public OrderDetailResponse approveAndAssignShipper(Long orderId, Long shipperId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Chỉ có thể phê duyệt đơn hàng đang chờ xử lý");
+        }
+
+        com.example.fishingecommerce.backend.entity.User shipper = userRepository.findById(shipperId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản shipper"));
+        boolean isShipper = shipper.getRole() == com.example.fishingecommerce.backend.enums.UserRole.SHIPPER
+                || (shipper.getRoles() != null && shipper.getRoles().stream().anyMatch(role -> "SHIPPER".equals(role.getName())));
+        if (!isShipper || shipper.getStatus() != com.example.fishingecommerce.backend.enums.UserAccountStatus.ACTIVE) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Tài khoản được chọn không phải shipper đang hoạt động");
+        }
+
+        order.setAssignedShipper(shipper);
+        order.setStatus(OrderStatus.PACKING);
+        return mapToResponse(orderRepository.saveAndFlush(order));
+    }
+
+    @Override
+    public List<OrderDetailResponse> getAssignedDeliveries(Long shipperId) {
+        return orderRepository.findByAssignedShipperIdAndStatusOrderByCreatedAtAsc(shipperId, OrderStatus.SHIPPING)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public OrderDetailResponse completeDelivery(Long orderId, Long shipperId, String proofImageUrl) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
+        if (order.getAssignedShipper() == null || !order.getAssignedShipper().getId().equals(shipperId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "Đơn hàng này không được giao cho bạn");
+        }
+        if (order.getStatus() != OrderStatus.SHIPPING) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Đơn hàng chưa ở trạng thái đang giao");
+        }
+        if (proofImageUrl == null || proofImageUrl.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Bắt buộc có ảnh xác nhận giao hàng");
+        }
+
+        order.setDeliveryProofImage(proofImageUrl.trim());
+        order.setDeliveredAt(java.time.LocalDateTime.now());
+        order.setStatus(OrderStatus.DELIVERED);
+        if ("COD".equalsIgnoreCase(order.getPaymentMethod())) {
+            order.setPaymentStatus(PaymentStatus.PAID);
+        }
+        return mapToResponse(orderRepository.saveAndFlush(order));
+    }
+
     private OrderDetailResponse mapToResponse(Order order) {
         return OrderDetailResponse.builder()
                 .id(order.getId())
@@ -269,6 +323,11 @@ public class OrderServiceImpl implements OrderService {
                 .totalAmount(order.getTotalAmount())
                 .discountAmount(order.getDiscountAmount())
                 .cancelReason(order.getCancelReason())
+                .assignedShipperId(order.getAssignedShipper() != null ? order.getAssignedShipper().getId() : null)
+                .assignedShipperName(order.getAssignedShipper() != null ? order.getAssignedShipper().getFullname() : null)
+                .assignedShipperEmail(order.getAssignedShipper() != null ? order.getAssignedShipper().getEmail() : null)
+                .deliveryProofImage(order.getDeliveryProofImage())
+                .deliveredAt(order.getDeliveredAt())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .items(order.getOrderItems() != null

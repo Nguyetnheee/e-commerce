@@ -66,6 +66,16 @@ public class Order {
     @Column(name = "CancelReason")
     private String cancelReason;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "AssignedShipperID")
+    private User assignedShipper;
+
+    @Column(name = "DeliveryProofImage", length = 1000)
+    private String deliveryProofImage;
+
+    @Column(name = "DeliveredAt")
+    private LocalDateTime deliveredAt;
+
     @Column(name = "CreatedAt")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

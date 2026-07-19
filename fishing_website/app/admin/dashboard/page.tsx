@@ -37,6 +37,8 @@ export default function AdminDashboardPage() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
   const [approvalOrder, setApprovalOrder] = useState<any | null>(null);
+  const [shippers, setShippers] = useState<any[]>([]);
+  const [selectedShipperId, setSelectedShipperId] = useState('');
   const [chartData, setChartData] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [confirmModal, setConfirmModal] = useState<{
@@ -92,11 +94,14 @@ export default function AdminDashboardPage() {
       }
 
       // 2. Fetch Orders list
-      const ordersData = await adminApi.getOrders();
+      const [ordersData, staffData] = await Promise.all([adminApi.getOrders(), adminApi.getAllAdmins()]);
       if (Array.isArray(ordersData)) {
         setTotalOrders(ordersData.length);
         const pending = ordersData.filter((o: any) => o.status === 'PENDING');
         setPendingOrders(pending);
+      }
+      if (Array.isArray(staffData)) {
+        setShippers(staffData.filter((user: any) => user.roles?.includes('SHIPPER') && user.status === 'ACTIVE'));
       }
 
       // 3. Fetch Chart Weekly Revenue
@@ -163,12 +168,17 @@ export default function AdminDashboardPage() {
 
   const handleApproveOrder = (order: any) => {
     setApprovalOrder(order);
+    setSelectedShipperId(order.assignedShipperId ? String(order.assignedShipperId) : '');
   };
 
   const confirmApproval = async () => {
     if (!approvalOrder) return;
+    if (!selectedShipperId) {
+      alert('Vui lòng chọn shipper phụ trách giao đơn.');
+      return;
+    }
     try {
-      await adminApi.updateOrderStatus(approvalOrder.id, 'PACKING');
+      await adminApi.approveOrder(approvalOrder.id, selectedShipperId);
       setApprovalOrder(null);
       await loadDashboardData();
       alert('Đã phê duyệt đơn hàng. Hệ thống đã chuyển thông tin sang bộ phận KHO.');
@@ -937,6 +947,21 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
+            <div className="mb-md">
+              <label className="text-label-sm font-bold block mb-xs">Gán shipper phụ trách *</label>
+              <select
+                value={selectedShipperId}
+                onChange={(event) => setSelectedShipperId(event.target.value)}
+                className="w-full bg-slate-50 border border-outline-variant/30 rounded-xl px-sm py-3 focus:outline-none focus:border-primary"
+              >
+                <option value="">-- Chọn shipper đang hoạt động --</option>
+                {shippers.map((shipper) => (
+                  <option key={shipper.id} value={shipper.id}>{shipper.fullname} ({shipper.email})</option>
+                ))}
+              </select>
+              {shippers.length === 0 && <p className="text-[11px] text-error mt-1">Chưa có tài khoản SHIPPER đang hoạt động.</p>}
+            </div>
+
             <div className="border border-outline-variant/20 rounded-xl divide-y divide-outline-variant/10">
               {approvalOrder.items?.map((item: any) => (
                 <div key={item.id} className="p-sm flex justify-between gap-sm text-label-sm">
@@ -956,7 +981,7 @@ export default function AdminDashboardPage() {
 
             <div className="flex justify-end gap-sm mt-md">
               <button type="button" onClick={() => setApprovalOrder(null)} className="px-md py-2.5 rounded-xl bg-slate-100 font-bold">Quay lại</button>
-              <button type="button" onClick={confirmApproval} className="px-md py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+              <button type="button" onClick={confirmApproval} disabled={!selectedShipperId} className="px-md py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold">
                 XÁC NHẬN PHÊ DUYỆT
               </button>
             </div>

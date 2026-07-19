@@ -222,6 +222,10 @@ export const adminApi = {
     method: 'POST',
     body: JSON.stringify({ reason }),
   }),
+  approveOrder: (id: number | string, shipperId: number | string) => fetchAPI(`/api/v1/admin/orders/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ shipperId }),
+  }),
   createProduct: (body: any) => fetchAPI('/api/v1/admin/products', {
     method: 'POST',
     body: JSON.stringify(body),
@@ -351,6 +355,14 @@ export const adminApi = {
     body: JSON.stringify(body),
   }),
   getVariantById: (id: string | number) => fetchAPI(`/api/v1/admin/variants/${id}`),
+};
+
+export const shipperApi = {
+  getAssignedOrders: () => fetchAPI('/api/v1/shipper/orders'),
+  completeDelivery: (id: number | string, proofImageUrl: string) => fetchAPI(`/api/v1/shipper/orders/${id}/complete`, {
+    method: 'POST',
+    body: JSON.stringify({ proofImageUrl }),
+  }),
 };
 
 // Public Blog/Post endpoints
