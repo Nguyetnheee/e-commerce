@@ -1,6 +1,7 @@
 package com.example.fishingecommerce.backend.controller;
 
 import com.example.fishingecommerce.backend.dto.request.CompleteDeliveryRequest;
+import com.example.fishingecommerce.backend.dto.request.FailDeliveryRequest;
 import com.example.fishingecommerce.backend.dto.response.OrderDetailResponse;
 import com.example.fishingecommerce.backend.service.OrderService;
 import jakarta.validation.Valid;
@@ -32,5 +33,16 @@ public class ShipperOrderController {
                 id,
                 Long.valueOf(authentication.getName()),
                 request.getProofImageUrl()));
+    }
+
+    @PostMapping("/{id}/fail")
+    public ResponseEntity<OrderDetailResponse> failDelivery(
+            @PathVariable Long id,
+            @Valid @RequestBody FailDeliveryRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(orderService.failDelivery(
+                id,
+                Long.valueOf(authentication.getName()),
+                request.getReason()));
     }
 }

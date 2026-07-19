@@ -76,6 +76,22 @@ public class Order {
     @Column(name = "DeliveredAt")
     private LocalDateTime deliveredAt;
 
+    @Column(name = "DeliveryFailureReason", length = 500)
+    private String deliveryFailureReason;
+
+    @Column(name = "DeliveryFailedAt")
+    private LocalDateTime deliveryFailedAt;
+
+    @Column(name = "DeliveryAttemptCount")
+    @Builder.Default
+    private Integer deliveryAttemptCount = 0;
+
+    @Column(name = "TrackingNumber", unique = true, updatable = false)
+    private String trackingNumber;
+
+    @Column(name = "ShippingLabelCreatedAt", updatable = false)
+    private LocalDateTime shippingLabelCreatedAt;
+
     @Column(name = "CreatedAt")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -30,7 +30,13 @@ public class OrderDetailResponse {
     private String assignedShipperEmail;
     private String deliveryProofImage;
     private LocalDateTime deliveredAt;
+    private String deliveryFailureReason;
+    private LocalDateTime deliveryFailedAt;
+    private Integer deliveryAttemptCount;
+    private String trackingNumber;
+    private LocalDateTime shippingLabelCreatedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<OrderItemResponse> items;
+    private List<ShippingEventResponse> shippingHistory;
 }

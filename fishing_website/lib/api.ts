@@ -363,6 +363,10 @@ export const shipperApi = {
     method: 'POST',
     body: JSON.stringify({ proofImageUrl }),
   }),
+  failDelivery: (id: number | string, reason: string) => fetchAPI(`/api/v1/shipper/orders/${id}/fail`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  }),
 };
 
 // Public Blog/Post endpoints

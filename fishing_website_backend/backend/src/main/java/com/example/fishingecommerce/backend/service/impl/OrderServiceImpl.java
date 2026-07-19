@@ -8,16 +8,19 @@ import com.example.fishingecommerce.backend.dto.response.OrderItemResponse;
 import com.example.fishingecommerce.backend.dto.response.OrderResponse;
 import com.example.fishingecommerce.backend.dto.response.OrderTrackingResponse;
 import com.example.fishingecommerce.backend.dto.response.PaymentStatusResponse;
+import com.example.fishingecommerce.backend.dto.response.ShippingEventResponse;
 import com.example.fishingecommerce.backend.entity.Coupon;
 import com.example.fishingecommerce.backend.entity.Order;
 import com.example.fishingecommerce.backend.entity.OrderItem;
 import com.example.fishingecommerce.backend.entity.ProductVariant;
+import com.example.fishingecommerce.backend.entity.ShippingEvent;
 import com.example.fishingecommerce.backend.enums.OrderStatus;
 import com.example.fishingecommerce.backend.enums.PaymentStatus;
 import com.example.fishingecommerce.backend.exceptions.AppException;
 import com.example.fishingecommerce.backend.repository.CouponRepository;
 import com.example.fishingecommerce.backend.repository.OrderRepository;
 import com.example.fishingecommerce.backend.repository.ProductVariantRepository;
+import com.example.fishingecommerce.backend.repository.ShippingEventRepository;
 import com.example.fishingecommerce.backend.service.OrderService;
 import com.example.fishingecommerce.backend.service.PayOSPaymentService;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,7 @@ public class OrderServiceImpl implements OrderService {
     private final com.example.fishingecommerce.backend.repository.CartItemRepository cartItemRepository;
     private final CouponRepository couponRepository;
     private final PayOSPaymentService payOSPaymentService;
+    private final ShippingEventRepository shippingEventRepository;
 
     @Override
     @Transactional
@@ -127,12 +131,48 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
 
-        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.DELIVERED) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "Không thể thay đổi trạng thái đơn hàng đã hủy hoặc đã giao");
+        if (order.getStatus() == OrderStatus.CANCELLED
+                || order.getStatus() == OrderStatus.DELIVERED
+                || order.getStatus() == OrderStatus.RETURNED) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Không thể thay đổi trạng thái đơn hàng đã kết thúc");
         }
 
-        order.setStatus(request.getStatus());
+        OrderStatus nextStatus = request.getStatus();
+        if (nextStatus == OrderStatus.DELIVERED) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Shipper phải xác nhận ảnh giao hàng qua luồng giao hàng để hoàn tất đơn");
+        }
+        if (nextStatus == OrderStatus.SHIPPING) {
+            if (order.getStatus() != OrderStatus.PACKING && order.getStatus() != OrderStatus.DELIVERY_FAILED) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "SH-001: Chỉ đơn đã đóng gói hoặc được duyệt giao lại mới có thể vận chuyển");
+            }
+            if (order.getAssignedShipper() == null) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "Phải chỉ định shipper trước khi vận chuyển");
+            }
+            if (order.getRecipientName() == null || order.getRecipientName().isBlank()
+                    || order.getRecipientPhone() == null || order.getRecipientPhone().isBlank()
+                    || order.getShippingAddress() == null || order.getShippingAddress().isBlank()) {
+                throw new AppException(HttpStatus.BAD_REQUEST,
+                        "SH-004: Kho phải xác minh đầy đủ tên, số điện thoại và địa chỉ người nhận");
+            }
+            ensurePaymentEligibleForShipping(order);
+            if (order.getTrackingNumber() == null) {
+                order.setTrackingNumber("WSG-" + order.getId() + "-" + System.currentTimeMillis());
+                order.setShippingLabelCreatedAt(java.time.LocalDateTime.now());
+            }
+            order.setDeliveryAttemptCount((order.getDeliveryAttemptCount() == null ? 0 : order.getDeliveryAttemptCount()) + 1);
+            order.setDeliveryFailureReason(null);
+            order.setDeliveryFailedAt(null);
+        } else if (nextStatus == OrderStatus.RETURNED && order.getStatus() != OrderStatus.DELIVERY_FAILED) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Chỉ đơn giao không thành công mới có thể trả lại kho");
+        }
+
+        order.setStatus(nextStatus);
         Order saved = orderRepository.save(order);
+        recordShippingEvent(saved, nextStatus,
+                nextStatus == OrderStatus.SHIPPING ? "Đơn hàng được bàn giao để vận chuyển" :
+                nextStatus == OrderStatus.RETURNED ? "Gói hàng được chuyển trả về kho để kiểm tra" :
+                "Cập nhật trạng thái đơn hàng", "ADMIN/KHO");
         return mapToResponse(saved);
     }
 
@@ -161,6 +201,7 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelReason(request.getReason());
         Order saved = orderRepository.save(order);
+        recordShippingEvent(saved, OrderStatus.CANCELLED, request.getReason(), "ADMIN");
         return mapToResponse(saved);
     }
 
@@ -262,6 +303,7 @@ public class OrderServiceImpl implements OrderService {
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new AppException(HttpStatus.BAD_REQUEST, "Chỉ có thể phê duyệt đơn hàng đang chờ xử lý");
         }
+        ensurePaymentEligibleForShipping(order);
 
         com.example.fishingecommerce.backend.entity.User shipper = userRepository.findById(shipperId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản shipper"));
@@ -273,12 +315,15 @@ public class OrderServiceImpl implements OrderService {
 
         order.setAssignedShipper(shipper);
         order.setStatus(OrderStatus.PACKING);
-        return mapToResponse(orderRepository.saveAndFlush(order));
+        Order saved = orderRepository.saveAndFlush(order);
+        recordShippingEvent(saved, OrderStatus.PACKING,
+                "Đơn được phê duyệt, gán cho " + shipper.getEmail() + " và chờ kho đóng gói", "ADMIN");
+        return mapToResponse(saved);
     }
 
     @Override
     public List<OrderDetailResponse> getAssignedDeliveries(Long shipperId) {
-        return orderRepository.findByAssignedShipperIdAndStatusOrderByCreatedAtAsc(shipperId, OrderStatus.SHIPPING)
+        return orderRepository.findByAssignedShipperIdOrderByUpdatedAtDesc(shipperId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -305,7 +350,31 @@ public class OrderServiceImpl implements OrderService {
         if ("COD".equalsIgnoreCase(order.getPaymentMethod())) {
             order.setPaymentStatus(PaymentStatus.PAID);
         }
-        return mapToResponse(orderRepository.saveAndFlush(order));
+        Order saved = orderRepository.saveAndFlush(order);
+        recordShippingEvent(saved, OrderStatus.DELIVERED, "Giao hàng thành công, đã có ảnh xác nhận", "SHIPPER");
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public OrderDetailResponse failDelivery(Long orderId, Long shipperId, String reason) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
+        if (order.getAssignedShipper() == null || !order.getAssignedShipper().getId().equals(shipperId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "Đơn hàng này không được giao cho bạn");
+        }
+        if (order.getStatus() != OrderStatus.SHIPPING) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Chỉ có thể báo thất bại đối với đơn đang giao");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Bắt buộc chọn lý do giao hàng không thành công");
+        }
+        order.setStatus(OrderStatus.DELIVERY_FAILED);
+        order.setDeliveryFailureReason(reason.trim());
+        order.setDeliveryFailedAt(java.time.LocalDateTime.now());
+        Order saved = orderRepository.saveAndFlush(order);
+        recordShippingEvent(saved, OrderStatus.DELIVERY_FAILED, reason.trim(), "SHIPPER");
+        return mapToResponse(saved);
     }
 
     private OrderDetailResponse mapToResponse(Order order) {
@@ -328,12 +397,45 @@ public class OrderServiceImpl implements OrderService {
                 .assignedShipperEmail(order.getAssignedShipper() != null ? order.getAssignedShipper().getEmail() : null)
                 .deliveryProofImage(order.getDeliveryProofImage())
                 .deliveredAt(order.getDeliveredAt())
+                .deliveryFailureReason(order.getDeliveryFailureReason())
+                .deliveryFailedAt(order.getDeliveryFailedAt())
+                .deliveryAttemptCount(order.getDeliveryAttemptCount())
+                .trackingNumber(order.getTrackingNumber())
+                .shippingLabelCreatedAt(order.getShippingLabelCreatedAt())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .items(order.getOrderItems() != null
                         ? order.getOrderItems().stream().map(this::mapItemToResponse).collect(Collectors.toList())
                         : List.of())
+                .shippingHistory(shippingEventRepository.findByOrderIdOrderByCreatedAtAsc(order.getId())
+                        .stream()
+                        .map(event -> ShippingEventResponse.builder()
+                                .id(event.getId())
+                                .status(event.getStatus())
+                                .note(event.getNote())
+                                .actor(event.getActor())
+                                .createdAt(event.getCreatedAt())
+                                .build())
+                        .toList())
                 .build();
+    }
+
+    private void recordShippingEvent(Order order, OrderStatus status, String note, String actor) {
+        shippingEventRepository.save(ShippingEvent.builder()
+                .order(order)
+                .status(status)
+                .note(note)
+                .actor(actor)
+                .build());
+    }
+
+    private void ensurePaymentEligibleForShipping(Order order) {
+        boolean codConfirmed = "COD".equalsIgnoreCase(order.getPaymentMethod());
+        boolean onlinePaid = order.getPaymentStatus() == PaymentStatus.PAID;
+        if (!codConfirmed && !onlinePaid) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Đơn thanh toán trực tuyến phải hoàn tất thanh toán trước khi đóng gói hoặc vận chuyển");
+        }
     }
 
     private Order loadOwnedOrder(String orderCode, Long userId) {

@@ -180,6 +180,10 @@ export default function AdminOrdersPage() {
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'SHIPPING':
         return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'DELIVERY_FAILED':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'RETURNED':
+        return 'bg-slate-200 text-slate-800 border-slate-300';
       case 'DELIVERED':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'CANCELLED':
@@ -194,6 +198,8 @@ export default function AdminOrdersPage() {
       case 'PENDING': return 'Chờ duyệt';
       case 'PACKING': return 'Đóng gói';
       case 'SHIPPING': return 'Đang giao';
+      case 'DELIVERY_FAILED': return 'Giao không thành công';
+      case 'RETURNED': return 'Đã trả về kho';
       case 'DELIVERED': return 'Đã giao';
       case 'CANCELLED': return 'Đã hủy';
       default: return status;
@@ -240,6 +246,8 @@ export default function AdminOrdersPage() {
               <option value="PENDING">Chờ phê duyệt (PENDING)</option>
               <option value="PACKING">Đang đóng gói (PACKING)</option>
               <option value="SHIPPING">Đang vận chuyển (SHIPPING)</option>
+              <option value="DELIVERY_FAILED">Giao không thành công</option>
+              <option value="RETURNED">Đã trả về kho</option>
               <option value="DELIVERED">Đã giao hàng (DELIVERED)</option>
               <option value="CANCELLED">Đã hủy đơn (CANCELLED)</option>
             </select>
@@ -352,16 +360,29 @@ export default function AdminOrdersPage() {
                               Giao hàng (Ship)
                             </button>
                           )}
-                          {order.status === 'SHIPPING' && (
-                            <button
-                              onClick={() => handleUpdateStatus(order.id, 'DELIVERED')}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-1 rounded"
-                              title="Hoàn thành giao hàng"
-                            >
-                              Hoàn thành
-                            </button>
+                          {order.status === 'DELIVERY_FAILED' && (
+                            <>
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'SHIPPING')}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] px-2.5 py-1 rounded"
+                              >
+                                Giao lại
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(order.id, 'RETURNED')}
+                                className="bg-slate-600 hover:bg-slate-700 text-white font-bold text-[10px] px-2.5 py-1 rounded"
+                              >
+                                Trả về kho
+                              </button>
+                              <button
+                                onClick={() => handleCancelOrder(order.id)}
+                                className="bg-red-50 text-red-600 font-bold text-[10px] px-2.5 py-1 rounded border border-red-200"
+                              >
+                                Hủy đơn
+                              </button>
+                            </>
                           )}
-                          {(order.status === 'DELIVERED' || order.status === 'CANCELLED') && (
+                          {(order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'RETURNED') && (
                             <span className="text-[11px] italic text-on-surface-variant/40">Không thể sửa</span>
                           )}
                         </div>
@@ -459,7 +480,7 @@ export default function AdminOrdersPage() {
               </div>
 
               {/* Actions details inside modal */}
-              {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && (
+              {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && selectedOrder.status !== 'RETURNED' && (
                 <div className="pt-sm border-t border-outline-variant/10 flex justify-end gap-sm">
                   {selectedOrder.status === 'PENDING' && (
                     <>
@@ -485,13 +506,18 @@ export default function AdminOrdersPage() {
                       Giao đơn vị vận chuyển
                     </button>
                   )}
-                  {selectedOrder.status === 'SHIPPING' && (
-                    <button
-                      onClick={() => handleUpdateStatus(selectedOrder.id, 'DELIVERED')}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-md rounded-xl transition-all shadow-md cursor-pointer"
-                    >
-                      Xác nhận đã giao hàng
-                    </button>
+                  {selectedOrder.status === 'DELIVERY_FAILED' && (
+                    <>
+                      <button onClick={() => handleUpdateStatus(selectedOrder.id, 'SHIPPING')} className="bg-blue-600 text-white font-bold py-2.5 px-md rounded-xl">
+                        Lên lịch giao lại
+                      </button>
+                      <button onClick={() => handleUpdateStatus(selectedOrder.id, 'RETURNED')} className="bg-slate-600 text-white font-bold py-2.5 px-md rounded-xl">
+                        Trả gói hàng về kho
+                      </button>
+                      <button onClick={() => handleCancelOrder(selectedOrder.id)} className="bg-red-50 text-red-600 border border-red-200 font-bold py-2.5 px-md rounded-xl">
+                        Hủy đơn hàng
+                      </button>
+                    </>
                   )}
                 </div>
               )}
