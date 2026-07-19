@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
@@ -18,6 +19,10 @@ public class OAuth2LoginSuccessHandler
         extends SavedRequestAwareAuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
+
+    @Value("${app.frontend-url:https://fishing-website-fe.vercel.app}")
+    private String frontendUrl;
+
     public OAuth2LoginSuccessHandler(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
@@ -36,7 +41,7 @@ public class OAuth2LoginSuccessHandler
         String name = oauthUser.getAttribute("name");
         LoginResponse loginResponse = authService.emailLogin(email, name);
         response.sendRedirect(
-                "https://fishing-website-fe.vercel.app/auth/callback?token=" + loginResponse.getToken()
+                frontendUrl + "/auth/callback?token=" + loginResponse.getToken()
         );
     }
 }

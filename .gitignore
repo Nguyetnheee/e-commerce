@@ -10,3 +10,6 @@ Thumbs.db
 
 # Previous standalone repository metadata retained locally
 .git-history-backup/
+
+# Local Azure deployment artifacts
+.azure-deploy/

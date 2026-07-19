@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -22,6 +23,9 @@ import java.time.Instant;
 
 @Service
 public class OTPService {
+
+    @Value("${spring.mail.username:}")
+    private String senderEmail;
 
     @Autowired
     UserRepository userRepository;
@@ -51,7 +55,9 @@ public class OTPService {
 
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("baolongtrantrieu@gmail.com");
+            if (senderEmail != null && !senderEmail.isBlank()) {
+                message.setFrom(senderEmail);
+            }
             message.setTo(user.getEmail());
             message.setSubject("Yeu cau doi mat khau");
             message.setText("Day la ma OTP cua ban, vui long khong chia se cho bat ky ai: " + otp);

@@ -1,4 +1,8 @@
 .git
+.git-history-backup
+.env
+.env.*
+!.env.example
 .idea
 .vscode
 .agents

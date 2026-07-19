@@ -1,6 +1,8 @@
 // lib/api.ts
 
-export const API_BASE_URL = 'https://fishingecommerce-production.up.railway.app';
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://fishingecommerce-production.up.railway.app';
 
 // Helper to get JWT token from localStorage
 export function getAuthToken(): string | null {
