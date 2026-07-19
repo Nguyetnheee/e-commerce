@@ -41,6 +41,7 @@ export default function AdminOrdersPage() {
 
   // Detail Modal
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [approvalOrder, setApprovalOrder] = useState<any | null>(null);
   
   // Actions loading state
   const [updatingId, setUpdatingId] = useState<number | string | null>(null);
@@ -64,6 +65,15 @@ export default function AdminOrdersPage() {
   }, []);
 
   const handleUpdateStatus = (orderId: number | string, newStatus: string) => {
+    if (newStatus === 'PACKING') {
+      const order = orders.find((item) => item.id === orderId);
+      if (order) {
+        setSelectedOrder(null);
+        setApprovalOrder(order);
+      }
+      return;
+    }
+
     const confirmMsg = newStatus === 'PACKING' 
       ? `Xác nhận phê duyệt đơn hàng #${orderId} và chuyển trạng thái đóng gói (PACKING)?`
       : newStatus === 'SHIPPING'
@@ -92,6 +102,22 @@ export default function AdminOrdersPage() {
         }
       }
     });
+  };
+
+  const confirmApproval = async () => {
+    if (!approvalOrder) return;
+    const orderId = approvalOrder.id;
+    try {
+      setUpdatingId(orderId);
+      await adminApi.updateOrderStatus(orderId, 'PACKING');
+      setApprovalOrder(null);
+      await loadOrders();
+      alert('Đã phê duyệt đơn hàng và chuyển sang trạng thái đóng gói.');
+    } catch (err: any) {
+      alert(err.message || 'Phê duyệt đơn hàng thất bại.');
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const handleCancelOrder = (orderId: number | string) => {
@@ -236,6 +262,7 @@ export default function AdminOrdersPage() {
                   <th className="py-3.5 px-md">Ngày đặt</th>
                   <th className="py-3.5 px-md">Khách hàng</th>
                   <th className="py-3.5 px-md">Phương thức</th>
+                  <th className="py-3.5 px-md">Thanh toán</th>
                   <th className="py-3.5 px-md">Tổng hóa đơn</th>
                   <th className="py-3.5 px-md">Trạng thái</th>
                   <th className="py-3.5 px-md text-right">Thao tác xử lý</th>
@@ -262,10 +289,21 @@ export default function AdminOrdersPage() {
                       </div>
                     </td>
                     <td className="py-4 px-md text-[11px] font-medium">
-                      {order.paymentMethod || 'Chuyển khoản (PayOS)'}
+                      {order.paymentMethod === 'PAYOS' ? 'PayOS' : 'COD'}
+                    </td>
+                    <td className="py-4 px-md">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${
+                        order.paymentStatus === 'PAID'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : order.paymentStatus === 'FAILED' || order.paymentStatus === 'CANCELLED'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {order.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN' : order.paymentStatus === 'PENDING' ? 'CHƯA THANH TOÁN' : 'THANH TOÁN LỖI/HỦY'}
+                      </span>
                     </td>
                     <td className="py-4 px-md font-bold text-emerald-600">
-                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total || 0)}
+                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}
                     </td>
                     <td className="py-4 px-md">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${getStatusBadge(order.status)}`}>
@@ -383,7 +421,7 @@ export default function AdminOrdersPage() {
                         </div>
                       </div>
                       <div className="font-semibold text-slate-700 text-right">
-                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.price || 0)}
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((item.soldPrice || 0) * (item.quantity || 1))}
                       </div>
                     </div>
                   ))}
@@ -394,18 +432,18 @@ export default function AdminOrdersPage() {
               <div className="border-t border-outline-variant/10 pt-sm space-y-xs text-label-sm font-sans">
                 <div className="flex justify-between text-on-surface-variant">
                   <span>Phương thức thanh toán:</span>
-                  <span className="font-bold text-on-surface">{selectedOrder.paymentMethod || 'PayOS'}</span>
+                  <span className="font-bold text-on-surface">{selectedOrder.paymentMethod === 'PAYOS' ? 'Chuyển khoản PayOS' : 'COD'}</span>
                 </div>
                 <div className="flex justify-between text-on-surface-variant">
-                  <span>Phí vận chuyển:</span>
-                  <span className="font-bold text-on-surface">
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedOrder.shippingFee || 0)}
+                  <span>Trạng thái thanh toán:</span>
+                  <span className={`font-extrabold ${selectedOrder.paymentStatus === 'PAID' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {selectedOrder.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}
                   </span>
                 </div>
                 <div className="flex justify-between text-on-surface border-t border-dashed border-slate-200 pt-xs mt-1">
                   <span className="font-black text-body-md">TỔNG THANH TOÁN:</span>
                   <span className="font-black text-body-md text-emerald-600">
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedOrder.total || 0)}
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedOrder.totalAmount || 0)}
                   </span>
                 </div>
               </div>
@@ -447,6 +485,68 @@ export default function AdminOrdersPage() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {approvalOrder && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-sm backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-md md:p-lg shadow-2xl text-left">
+            <div className="flex justify-between items-start gap-sm border-b border-outline-variant/20 pb-sm">
+              <div>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Xác nhận phê duyệt</span>
+                <h2 className="text-headline-sm font-black mt-1">Đơn hàng #WS-{approvalOrder.id}</h2>
+              </div>
+              <button type="button" onClick={() => setApprovalOrder(null)} className="p-1.5 rounded-full hover:bg-slate-100 text-outline">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm my-md text-label-sm">
+              <div className="bg-slate-50 rounded-xl p-sm">
+                <p className="text-on-surface-variant">Khách hàng</p>
+                <p className="font-bold">{approvalOrder.recipientName}</p>
+                <p>{approvalOrder.recipientPhone}</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-sm">
+                <p className="text-on-surface-variant">Thanh toán</p>
+                <p className={`font-extrabold ${approvalOrder.paymentStatus === 'PAID' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {approvalOrder.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}
+                </p>
+                <p>{approvalOrder.paymentMethod === 'PAYOS' ? 'Chuyển khoản PayOS' : 'COD'}</p>
+              </div>
+            </div>
+
+            <div className="border border-outline-variant/20 rounded-xl divide-y divide-outline-variant/10">
+              {approvalOrder.items?.map((item: any) => (
+                <div key={item.id} className="p-sm flex justify-between gap-sm text-label-sm">
+                  <div>
+                    <p className="font-bold">{item.productName}</p>
+                    <p className="text-[11px] text-on-surface-variant">{item.variantName || 'Mặc định'} · SL: {item.quantity}</p>
+                  </div>
+                  <p className="font-bold shrink-0">
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((item.soldPrice || 0) * item.quantity)}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-between items-center py-md border-b border-outline-variant/20">
+              <span className="font-black">TỔNG TIỀN HÓA ĐƠN</span>
+              <span className="text-headline-sm font-black text-emerald-700">
+                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(approvalOrder.totalAmount || 0)}
+              </span>
+            </div>
+
+            <p className="text-[11px] text-on-surface-variant mt-sm">
+              Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái “Đang đóng gói”.
+            </p>
+            <div className="flex justify-end gap-sm mt-md">
+              <button type="button" onClick={() => setApprovalOrder(null)} className="px-md py-2.5 rounded-xl bg-slate-100 font-bold">Quay lại</button>
+              <button type="button" onClick={confirmApproval} disabled={updatingId === approvalOrder.id} className="px-md py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold">
+                {updatingId === approvalOrder.id ? 'ĐANG PHÊ DUYỆT...' : 'XÁC NHẬN PHÊ DUYỆT'}
+              </button>
             </div>
           </div>
         </div>

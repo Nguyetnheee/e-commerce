@@ -36,6 +36,7 @@ export default function AdminDashboardPage() {
   const [revenue, setRevenue] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+  const [approvalOrder, setApprovalOrder] = useState<any | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [confirmModal, setConfirmModal] = useState<{
@@ -160,23 +161,20 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const handleApproveOrder = (id: number | string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Phê duyệt đơn hàng',
-      message: `Bạn có chắc muốn phê duyệt đơn hàng #${id}?`,
-      isPrompt: false,
-      onConfirm: async () => {
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        try {
-          await adminApi.updateOrderStatus(id, 'PACKING');
-          alert(`Đã phê duyệt đơn hàng #${id}. Hệ thống chuyển thông tin sang bộ phận KHO.`);
-          loadDashboardData();
-        } catch (err: any) {
-          alert(err.message || 'Phê duyệt đơn hàng thất bại.');
-        }
-      }
-    });
+  const handleApproveOrder = (order: any) => {
+    setApprovalOrder(order);
+  };
+
+  const confirmApproval = async () => {
+    if (!approvalOrder) return;
+    try {
+      await adminApi.updateOrderStatus(approvalOrder.id, 'PACKING');
+      setApprovalOrder(null);
+      await loadDashboardData();
+      alert('Đã phê duyệt đơn hàng. Hệ thống đã chuyển thông tin sang bộ phận KHO.');
+    } catch (err: any) {
+      alert(err.message || 'Phê duyệt đơn hàng thất bại.');
+    }
   };
 
   const handleCancelOrder = (id: number | string) => {
@@ -484,6 +482,7 @@ export default function AdminDashboardPage() {
                       <th className="py-2.5">Khách hàng</th>
                       <th className="py-2.5">Sản phẩm</th>
                       <th className="py-2.5">Tổng tiền</th>
+                      <th className="py-2.5">Thanh toán</th>
                       <th className="py-2.5">Trạng thái</th>
                       <th className="py-2.5 text-right">Thao tác</th>
                     </tr>
@@ -491,13 +490,13 @@ export default function AdminDashboardPage() {
                   <tbody className="divide-y divide-outline-variant/10 text-body-sm text-on-surface-variant">
                     {loadingData ? (
                       <tr>
-                        <td colSpan={6} className="py-6 text-center text-on-surface-variant/60 font-semibold">
+                        <td colSpan={7} className="py-6 text-center text-on-surface-variant/60 font-semibold">
                           Đang tải danh sách đơn hàng...
                         </td>
                       </tr>
                     ) : pendingOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-6 text-center text-on-surface-variant/60 font-semibold">
+                        <td colSpan={7} className="py-6 text-center text-on-surface-variant/60 font-semibold">
                           Không có đơn hàng nào cần phê duyệt.
                         </td>
                       </tr>
@@ -516,6 +515,15 @@ export default function AdminDashboardPage() {
                           </td>
                           <td className="py-3 font-bold text-on-surface">{formatPrice(order.totalAmount)}</td>
                           <td className="py-3">
+                            <span className={`text-[10px] font-extrabold px-2 py-1 rounded-full border ${
+                              order.paymentStatus === 'PAID'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {order.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}
+                            </span>
+                          </td>
+                          <td className="py-3">
                             <span className="bg-blue-50 text-[#00288e] text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-blue-200">
                               Chờ duyệt
                             </span>
@@ -523,7 +531,7 @@ export default function AdminDashboardPage() {
                           <td className="py-3 text-right">
                             <div className="flex justify-end gap-xs">
                               <button
-                                onClick={() => handleApproveOrder(order.id)}
+                                onClick={() => handleApproveOrder(order)}
                                 className="w-7 h-7 rounded-md bg-secondary/10 hover:bg-secondary text-secondary hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-secondary/20"
                                 title="Duyệt đơn"
                               >
@@ -897,6 +905,61 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {approvalOrder && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-sm">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-md md:p-lg text-left max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-outline-variant/20 pb-sm">
+              <div>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Xác nhận phê duyệt</span>
+                <h2 className="text-headline-sm font-black mt-1">Đơn hàng #WS-{approvalOrder.id}</h2>
+              </div>
+              <button type="button" onClick={() => setApprovalOrder(null)} className="p-1.5 rounded-full hover:bg-slate-100 text-outline">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-sm my-md text-label-sm">
+              <div className="bg-slate-50 rounded-xl p-sm">
+                <p className="text-on-surface-variant">Khách hàng</p>
+                <p className="font-bold">{approvalOrder.recipientName}</p>
+                <p>{approvalOrder.recipientPhone}</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-sm">
+                <p className="text-on-surface-variant">Trạng thái thanh toán</p>
+                <p className={`font-extrabold ${approvalOrder.paymentStatus === 'PAID' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {approvalOrder.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}
+                </p>
+                <p>{approvalOrder.paymentMethod === 'PAYOS' ? 'Chuyển khoản PayOS' : 'COD'}</p>
+              </div>
+            </div>
+
+            <div className="border border-outline-variant/20 rounded-xl divide-y divide-outline-variant/10">
+              {approvalOrder.items?.map((item: any) => (
+                <div key={item.id} className="p-sm flex justify-between gap-sm text-label-sm">
+                  <div>
+                    <p className="font-bold">{item.productName}</p>
+                    <p className="text-[11px] text-on-surface-variant">SL: {item.quantity}</p>
+                  </div>
+                  <p className="font-bold">{formatPrice((item.soldPrice || 0) * item.quantity)}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-between items-center py-md border-b border-outline-variant/20">
+              <span className="font-black">TỔNG TIỀN HÓA ĐƠN</span>
+              <span className="text-headline-sm font-black text-emerald-700">{formatPrice(approvalOrder.totalAmount)}</span>
+            </div>
+
+            <div className="flex justify-end gap-sm mt-md">
+              <button type="button" onClick={() => setApprovalOrder(null)} className="px-md py-2.5 rounded-xl bg-slate-100 font-bold">Quay lại</button>
+              <button type="button" onClick={confirmApproval} className="px-md py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                XÁC NHẬN PHÊ DUYỆT
+              </button>
+            </div>
           </div>
         </div>
       )}
