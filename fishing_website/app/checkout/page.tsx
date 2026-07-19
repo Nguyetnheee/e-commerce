@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { CreditCard, Truck, ShieldCheck, ArrowRight, User, Phone, MapPin, Building } from 'lucide-react';
-import { cartApi, orderApi, getAuthToken } from '../../lib/api';
+import { cartApi, couponApi, orderApi, getAuthToken } from '../../lib/api';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -16,6 +16,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bank'>('cod');
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState<any[]>([]);
+  const [couponCode, setCouponCode] = useState('');
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   // Load cart items on mount & check authentication
   useEffect(() => {
@@ -43,7 +45,27 @@ export default function CheckoutPage() {
     return sum + price * qty;
   }, 0);
 
-  const total = subtotal;
+  const total = Math.max(0, subtotal - discountAmount);
+
+  useEffect(() => {
+    const savedCoupon = sessionStorage.getItem('checkoutCoupon');
+    if (!savedCoupon || subtotal <= 0) {
+      setCouponCode('');
+      setDiscountAmount(0);
+      return;
+    }
+
+    couponApi.validateCoupon(savedCoupon, subtotal)
+      .then((result) => {
+        setCouponCode(result.couponCode || savedCoupon);
+        setDiscountAmount(Number(result.discountAmount || 0));
+      })
+      .catch(() => {
+        sessionStorage.removeItem('checkoutCoupon');
+        setCouponCode('');
+        setDiscountAmount(0);
+      });
+  }, [subtotal]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +90,8 @@ export default function CheckoutPage() {
       recipientName: fullname,
       recipientPhone: phone,
       shippingAddress: `${address}, ${city || 'Hà Nội'}`,
-      paymentMethod: paymentMethod === 'cod' ? 'COD' : 'BANK_TRANSFER',
+      paymentMethod: paymentMethod === 'cod' ? 'COD' : 'PAYOS',
+      couponCode: couponCode || undefined,
       items: orderItemsPayload,
     };
 
@@ -88,6 +111,7 @@ export default function CheckoutPage() {
             address: orderPayload.shippingAddress,
             paymentMethod: paymentMethod === 'cod' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản Ngân hàng',
             total,
+            couponCode: couponCode || undefined,
             orderId: data.orderCode || 'WSG-' + data.id,
             date: new Date().toLocaleDateString('vi-VN'),
             items: cartItems.map((item) => ({
@@ -98,6 +122,7 @@ export default function CheckoutPage() {
               soldPrice: item.price || item.soldPrice || 0
             }))
           }));
+          sessionStorage.removeItem('checkoutCoupon');
         }
         if (paymentMethod === 'bank' && data.checkoutUrl) {
           window.location.href = data.checkoutUrl;
@@ -317,6 +342,12 @@ export default function CheckoutPage() {
                   <span>Tạm tính</span>
                   <span className="font-sans font-bold text-on-surface">{formatPrice(subtotal)}</span>
                 </div>
+                {couponCode && (
+                  <div className="flex justify-between text-label-sm text-secondary font-medium">
+                    <span>Giảm giá ({couponCode})</span>
+                    <span className="font-sans font-bold">-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
 
                 <div className="flex justify-between items-end border-t border-outline-variant/10 pt-sm mt-xs">
                   <span className="text-label-md font-bold text-on-surface">Tổng cộng</span>

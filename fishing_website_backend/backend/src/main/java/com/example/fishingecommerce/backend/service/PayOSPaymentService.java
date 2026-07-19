@@ -19,10 +19,10 @@ public class PayOSPaymentService {
 
     private final OrderRepository orderRepository;
 
-    @Value("${payos.return-url:https://fishing-website-fe.vercel.app/payment/success}")
+    @Value("${payos.return-url:https://orange-water-0dc520900.7.azurestaticapps.net/payment/success}")
     private String returnUrl;
 
-    @Value("${payos.cancel-url:https://fishing-website-fe.vercel.app/payment/failure}")
+    @Value("${payos.cancel-url:https://orange-water-0dc520900.7.azurestaticapps.net/payment/failure}")
     private String cancelUrl;
 
     @Value("${payos.webhook-url:}")
@@ -73,8 +73,12 @@ public class PayOSPaymentService {
     }
 
     public void markOrderPaid(long orderCode) {
-        Order order = orderRepository.findByOrderCode(String.valueOf(orderCode))
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng PayOS: " + orderCode));
+        // PayOS sends a signed sample payload while confirming the webhook URL.
+        // Acknowledge verified payloads whose sample order does not exist locally.
+        Order order = orderRepository.findByOrderCode(String.valueOf(orderCode)).orElse(null);
+        if (order == null) {
+            return;
+        }
 
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
             return;

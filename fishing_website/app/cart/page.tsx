@@ -3,8 +3,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, ShieldCheck } from 'lucide-react';
-import { cartApi, getAuthToken } from '../../lib/api';
+import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, ShieldCheck, TicketPercent } from 'lucide-react';
+import { cartApi, couponApi, getAuthToken } from '../../lib/api';
 
 import { useRouter } from 'next/navigation';
 
@@ -22,6 +22,11 @@ interface CartItem {
 export default function CartPage() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   const handleProceedToCheckout = (e: React.MouseEvent) => {
     e.preventDefault();
     const token = getAuthToken();
@@ -71,6 +76,10 @@ export default function CartPage() {
 
   useEffect(() => {
     loadCart();
+    const savedCoupon = sessionStorage.getItem('checkoutCoupon');
+    if (savedCoupon) {
+      setCouponCode(savedCoupon);
+    }
   }, []);
 
   // Update item quantity
@@ -122,7 +131,34 @@ export default function CartPage() {
     return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cartItems]);
 
-  const total = subtotal;
+  const total = Math.max(0, subtotal - discountAmount);
+
+  const applyCoupon = async () => {
+    const normalizedCode = couponCode.trim().toUpperCase();
+    if (!normalizedCode) {
+      setCouponMessage('Vui lòng nhập mã giảm giá.');
+      return;
+    }
+
+    setValidatingCoupon(true);
+    setCouponMessage('');
+    try {
+      const result = await couponApi.validateCoupon(normalizedCode, subtotal);
+      const discount = Number(result.discountAmount || 0);
+      setCouponCode(result.couponCode || normalizedCode);
+      setAppliedCoupon(result.couponCode || normalizedCode);
+      setDiscountAmount(discount);
+      setCouponMessage(result.message || 'Áp dụng mã giảm giá thành công.');
+      sessionStorage.setItem('checkoutCoupon', result.couponCode || normalizedCode);
+    } catch (error: any) {
+      setAppliedCoupon('');
+      setDiscountAmount(0);
+      sessionStorage.removeItem('checkoutCoupon');
+      setCouponMessage(error.message || 'Mã giảm giá không hợp lệ.');
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
@@ -272,6 +308,42 @@ export default function CartPage() {
             {/* RIGHT SIDE: Summary Card (4 columns) */}
             <div className="lg:col-span-4 flex flex-col gap-sm sticky top-24">
               <div className="bg-white rounded-2xl shadow-ambient border border-outline-variant/5 p-md text-left">
+                <label htmlFor="couponCode" className="text-label-sm font-bold text-on-surface flex items-center gap-xs mb-xs">
+                  <TicketPercent className="w-4.5 h-4.5 text-primary" />
+                  Mã giảm giá
+                </label>
+                <div className="flex gap-xs">
+                  <input
+                    id="couponCode"
+                    type="text"
+                    value={couponCode}
+                    onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        applyCoupon();
+                      }
+                    }}
+                    placeholder="Nhập mã giảm giá"
+                    className="min-w-0 flex-1 bg-[#f8f9fa] border border-[#e5e7eb] rounded-md py-2.5 px-3 text-label-sm uppercase text-on-surface placeholder:normal-case focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyCoupon}
+                    disabled={validatingCoupon || subtotal <= 0}
+                    className="bg-primary hover:bg-[#1e40af] disabled:opacity-50 text-white text-label-sm font-bold rounded-md px-sm whitespace-nowrap"
+                  >
+                    {validatingCoupon ? 'ĐANG KIỂM TRA' : 'ÁP DỤNG'}
+                  </button>
+                </div>
+                {couponMessage && (
+                  <p className={`mt-xs text-[11px] ${appliedCoupon ? 'text-secondary' : 'text-error'}`}>
+                    {couponMessage}
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-ambient border border-outline-variant/5 p-md text-left">
                 <h3 className="text-label-md font-extrabold text-on-surface uppercase tracking-wider mb-sm pb-xs border-b border-outline-variant/10">
                   Tóm tắt đơn hàng
                 </h3>
@@ -282,6 +354,12 @@ export default function CartPage() {
                     <span>Tạm tính ({cartItems.reduce((acc, curr) => acc + curr.quantity, 0)} món)</span>
                     <span className="font-sans font-semibold text-on-surface">{formatPrice(subtotal)}</span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-body-md text-secondary font-medium">
+                      <span>Giảm giá ({appliedCoupon})</span>
+                      <span className="font-sans font-semibold">-{formatPrice(discountAmount)}</span>
+                    </div>
+                  )}
 
                 </div>
 
