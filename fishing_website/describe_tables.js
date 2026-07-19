@@ -1,0 +1,40 @@
+const mysql = require('mysql2');
+
+const config = {
+  host: 'reseau.proxy.rlwy.net',
+  port: 42598,
+  user: 'root',
+  password: 'jfLzvkLQWsSioUFKRnycCZmssWOynecD',
+  database: 'railway'
+};
+
+const connection = mysql.createConnection(config);
+
+connection.connect((err) => {
+  if (err) {
+    console.error('Connection error:', err);
+    process.exit(1);
+  }
+
+  connection.query('DESCRIBE products', (err, cols) => {
+    if (err) console.error(err);
+    else console.log('Products columns:', cols);
+
+    connection.query('DESCRIBE product_variants', (err, cols2) => {
+      if (err) console.error(err);
+      else console.log('Product_variants columns:', cols2);
+
+      connection.query('SELECT * FROM tags', (err, tags) => {
+        if (err) console.error(err);
+        else console.log('Tags:', tags);
+
+        connection.query('SELECT * FROM product_tags', (err, pt) => {
+          if (err) console.error(err);
+          else console.log('Product_tags sample:', pt);
+          
+          connection.end();
+        });
+      });
+    });
+  });
+});

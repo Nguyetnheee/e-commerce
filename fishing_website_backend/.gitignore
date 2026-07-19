@@ -1,0 +1,21 @@
+# Build output
+backend/target/
+backend/*.jar
+backend/*.war
+
+# IDE
+backend/.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local environment secrets
+.env
+
+# kimchi AI Agent
+.kimchi/

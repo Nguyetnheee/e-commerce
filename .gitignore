@@ -1,0 +1,12 @@
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Common generated files
+.DS_Store
+Thumbs.db
+*.log
+
+# Previous standalone repository metadata retained locally
+.git-history-backup/

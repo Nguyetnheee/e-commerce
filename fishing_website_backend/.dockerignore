@@ -1,0 +1,11 @@
+.git
+.idea
+.vscode
+.agents
+.codex
+.kimchi
+backend/target
+backend/*.log
+*.log
+*.iml
+node_modules
