@@ -22,6 +22,6 @@ public interface OrderService {
     String recreatePaymentLink(String orderCode, Long userId);
     OrderDetailResponse approveAndAssignShipper(Long orderId, Long shipperId);
     List<OrderDetailResponse> getAssignedDeliveries(Long shipperId);
-    OrderDetailResponse completeDelivery(Long orderId, Long shipperId, String proofImageUrl);
+    OrderDetailResponse completeDelivery(Long orderId, Long shipperId, String proofImageUrl, String codPaymentProofImageUrl);
     OrderDetailResponse failDelivery(Long orderId, Long shipperId, String reason);
 }

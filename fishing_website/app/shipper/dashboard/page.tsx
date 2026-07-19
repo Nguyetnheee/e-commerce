@@ -69,7 +69,9 @@ export default function ShipperDashboardPage() {
   const [failedOrder, setFailedOrder] = useState<any | null>(null);
   const [failureReason, setFailureReason] = useState('');
   const [proofImageUrl, setProofImageUrl] = useState('');
+  const [codPaymentProofImageUrl, setCodPaymentProofImageUrl] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [uploadingCodProof, setUploadingCodProof] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchOrders = async (silent = false) => {
@@ -128,13 +130,14 @@ export default function ShipperDashboardPage() {
     failed: orders.filter((order) => order.status === 'DELIVERY_FAILED').length,
   }), [orders]);
 
-  const uploadProof = async (file?: File) => {
+  const uploadProof = async (file?: File, proofType: 'delivery' | 'cod' = 'delivery') => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Vui lòng chọn đúng tệp hình ảnh.');
       return;
     }
-    setUploadingProof(true);
+    const setUploading = proofType === 'cod' ? setUploadingCodProof : setUploadingProof;
+    setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -145,11 +148,12 @@ export default function ShipperDashboardPage() {
       });
       if (!response.ok) throw new Error('Không thể tải ảnh xác nhận.');
       const data = await response.json();
-      setProofImageUrl(data.secure_url);
+      if (proofType === 'cod') setCodPaymentProofImageUrl(data.secure_url);
+      else setProofImageUrl(data.secure_url);
     } catch (error: any) {
       alert(error.message || 'Tải ảnh xác nhận thất bại.');
     } finally {
-      setUploadingProof(false);
+      setUploading(false);
     }
   };
 
@@ -158,11 +162,20 @@ export default function ShipperDashboardPage() {
       alert('Bắt buộc chụp hoặc tải ảnh xác nhận gói hàng đã được giao.');
       return;
     }
+    if (deliveryOrder.paymentMethod === 'COD' && !codPaymentProofImageUrl) {
+      alert('Đơn COD bắt buộc chụp ảnh chứng minh đã nhận đủ tiền từ khách hàng.');
+      return;
+    }
     setSubmitting(true);
     try {
-      await shipperApi.completeDelivery(deliveryOrder.id, proofImageUrl);
+      await shipperApi.completeDelivery(
+        deliveryOrder.id,
+        proofImageUrl,
+        deliveryOrder.paymentMethod === 'COD' ? codPaymentProofImageUrl : undefined,
+      );
       setDeliveryOrder(null);
       setProofImageUrl('');
+      setCodPaymentProofImageUrl('');
       await fetchOrders(true);
       alert('Đã xác nhận giao hàng thành công.');
     } catch (error: any) {
@@ -315,6 +328,11 @@ export default function ShipperDashboardPage() {
                             <Camera className="w-3.5 h-3.5" /> Xem ảnh xác nhận giao hàng <ExternalLink className="w-3 h-3" />
                           </a>
                         )}
+                        {order.codPaymentProofImage && (
+                          <a href={order.codPaymentProofImage} target="_blank" rel="noreferrer" className="ml-sm mt-xs inline-flex items-center gap-1 text-[11px] text-emerald-700 font-bold">
+                            <Camera className="w-3.5 h-3.5" /> Xem ảnh chứng minh thu tiền COD <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
                         {order.shippingHistory?.length > 0 && (
                           <details className="mt-sm rounded-xl border border-outline-variant/30 bg-white">
                             <summary className="cursor-pointer px-xs py-2 text-[11px] font-bold text-primary">
@@ -341,7 +359,7 @@ export default function ShipperDashboardPage() {
                             <button onClick={() => { setFailedOrder(order); setFailureReason(''); }} className="flex-1 border border-red-200 bg-red-50 text-red-700 px-3 py-2 rounded-lg font-bold text-[11px]">
                               Giao không thành công
                             </button>
-                            <button onClick={() => { setDeliveryOrder(order); setProofImageUrl(''); }} className="flex-1 bg-emerald-600 text-white px-3 py-2 rounded-lg font-bold text-[11px]">
+                            <button onClick={() => { setDeliveryOrder(order); setProofImageUrl(''); setCodPaymentProofImageUrl(''); }} className="flex-1 bg-emerald-600 text-white px-3 py-2 rounded-lg font-bold text-[11px]">
                               Xác nhận đã giao
                             </button>
                           </>
@@ -369,18 +387,38 @@ export default function ShipperDashboardPage() {
       {deliveryOrder && (
         <div className="fixed inset-0 z-50 bg-black/60 p-sm overflow-y-auto">
           <div className="min-h-full flex items-center justify-center">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-md shadow-2xl">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-md shadow-2xl">
               <div className="flex justify-between items-center border-b pb-sm"><h3 className="font-black text-body-lg flex gap-xs"><Camera className="text-emerald-600" /> Xác nhận giao hàng</h3><button onClick={() => setDeliveryOrder(null)}><X /></button></div>
-              <p className="text-label-sm my-sm">Bắt buộc có ảnh gói hàng đã giao cho khách. Sau khi xác nhận, đơn sẽ hoàn tất và không thể sửa lại.</p>
+              <p className="text-label-sm my-sm">
+                Bắt buộc có ảnh gói hàng đã giao cho khách.
+                {deliveryOrder.paymentMethod === 'COD' && <> Đơn COD phải có thêm ảnh chứng minh đã nhận đủ <strong>{money(deliveryOrder.totalAmount)}</strong>.</>}
+                {' '}Sau khi xác nhận, đơn sẽ hoàn tất và không thể sửa lại.
+              </p>
+              <h4 className="font-bold text-sm mb-xs">1. Ảnh gói hàng đã giao</h4>
               {proofImageUrl ? (
-                <img src={proofImageUrl} alt="Ảnh xác nhận giao hàng" className="w-full h-64 object-contain bg-slate-50 border rounded-xl" />
+                <img src={proofImageUrl} alt="Ảnh xác nhận giao hàng" className="w-full h-52 object-contain bg-slate-50 border rounded-xl" />
               ) : (
-                <label className="h-56 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer bg-slate-50">
+                <label className="h-44 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer bg-slate-50">
                   <UploadCloud className="w-10 h-10 text-slate-400" /><span className="font-bold mt-xs">{uploadingProof ? 'Đang tải ảnh...' : 'Chụp hoặc chọn ảnh giao hàng'}</span>
                   <input type="file" accept="image/*" capture="environment" disabled={uploadingProof} onChange={(e) => uploadProof(e.target.files?.[0])} className="hidden" />
                 </label>
               )}
-              <div className="flex gap-xs mt-sm"><button onClick={() => setDeliveryOrder(null)} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Hủy</button><button disabled={!proofImageUrl || submitting} onClick={completeDelivery} className="flex-1 bg-emerald-600 disabled:opacity-50 text-white py-2 rounded-lg font-bold">{submitting ? 'Đang cập nhật...' : 'Xác nhận đã giao'}</button></div>
+              {deliveryOrder.paymentMethod === 'COD' && (
+                <div className="mt-sm">
+                  <h4 className="font-bold text-sm mb-xs">2. Ảnh chứng minh đã nhận tiền COD <span className="text-red-600">*</span></h4>
+                  {codPaymentProofImageUrl ? (
+                    <img src={codPaymentProofImageUrl} alt="Ảnh chứng minh nhận tiền COD" className="w-full h-52 object-contain bg-emerald-50 border border-emerald-200 rounded-xl" />
+                  ) : (
+                    <label className="h-44 border-2 border-dashed border-emerald-300 rounded-xl flex flex-col items-center justify-center cursor-pointer bg-emerald-50">
+                      <UploadCloud className="w-10 h-10 text-emerald-500" />
+                      <span className="font-bold mt-xs">{uploadingCodProof ? 'Đang tải ảnh...' : `Chụp ảnh chứng minh đã nhận ${money(deliveryOrder.totalAmount)}`}</span>
+                      <span className="text-xs text-slate-500 mt-1">Ví dụ: tiền mặt đã nhận hoặc biên nhận chuyển khoản COD</span>
+                      <input type="file" accept="image/*" capture="environment" disabled={uploadingCodProof} onChange={(e) => uploadProof(e.target.files?.[0], 'cod')} className="hidden" />
+                    </label>
+                  )}
+                </div>
+              )}
+              <div className="flex gap-xs mt-sm"><button onClick={() => setDeliveryOrder(null)} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Hủy</button><button disabled={!proofImageUrl || (deliveryOrder.paymentMethod === 'COD' && !codPaymentProofImageUrl) || submitting} onClick={completeDelivery} className="flex-1 bg-emerald-600 disabled:opacity-50 text-white py-2 rounded-lg font-bold">{submitting ? 'Đang cập nhật...' : 'Xác nhận đã giao'}</button></div>
             </div>
           </div>
         </div>

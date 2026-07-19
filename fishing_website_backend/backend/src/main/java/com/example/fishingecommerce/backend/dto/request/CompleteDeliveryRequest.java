@@ -7,4 +7,6 @@ import lombok.Data;
 public class CompleteDeliveryRequest {
     @NotBlank
     private String proofImageUrl;
+
+    private String codPaymentProofImageUrl;
 }

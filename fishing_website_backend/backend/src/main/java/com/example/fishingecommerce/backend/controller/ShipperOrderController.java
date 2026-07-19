@@ -32,7 +32,8 @@ public class ShipperOrderController {
         return ResponseEntity.ok(orderService.completeDelivery(
                 id,
                 Long.valueOf(authentication.getName()),
-                request.getProofImageUrl()));
+                request.getProofImageUrl(),
+                request.getCodPaymentProofImageUrl()));
     }
 
     @PostMapping("/{id}/fail")

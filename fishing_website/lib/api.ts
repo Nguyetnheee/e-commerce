@@ -359,9 +359,9 @@ export const adminApi = {
 
 export const shipperApi = {
   getAssignedOrders: () => fetchAPI('/api/v1/shipper/orders'),
-  completeDelivery: (id: number | string, proofImageUrl: string) => fetchAPI(`/api/v1/shipper/orders/${id}/complete`, {
+  completeDelivery: (id: number | string, proofImageUrl: string, codPaymentProofImageUrl?: string) => fetchAPI(`/api/v1/shipper/orders/${id}/complete`, {
     method: 'POST',
-    body: JSON.stringify({ proofImageUrl }),
+    body: JSON.stringify({ proofImageUrl, codPaymentProofImageUrl }),
   }),
   failDelivery: (id: number | string, reason: string) => fetchAPI(`/api/v1/shipper/orders/${id}/fail`, {
     method: 'POST',

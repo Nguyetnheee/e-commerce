@@ -73,6 +73,9 @@ public class Order {
     @Column(name = "DeliveryProofImage", length = 1000)
     private String deliveryProofImage;
 
+    @Column(name = "CodPaymentProofImage", length = 1000)
+    private String codPaymentProofImage;
+
     @Column(name = "DeliveredAt")
     private LocalDateTime deliveredAt;
 

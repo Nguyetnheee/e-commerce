@@ -331,7 +331,11 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderDetailResponse completeDelivery(Long orderId, Long shipperId, String proofImageUrl) {
+    public OrderDetailResponse completeDelivery(
+            Long orderId,
+            Long shipperId,
+            String proofImageUrl,
+            String codPaymentProofImageUrl) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
         if (order.getAssignedShipper() == null || !order.getAssignedShipper().getId().equals(shipperId)) {
@@ -344,14 +348,25 @@ public class OrderServiceImpl implements OrderService {
             throw new AppException(HttpStatus.BAD_REQUEST, "Bắt buộc có ảnh xác nhận giao hàng");
         }
 
+        boolean codOrder = "COD".equalsIgnoreCase(order.getPaymentMethod());
+        if (codOrder && (codPaymentProofImageUrl == null || codPaymentProofImageUrl.isBlank())) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Đơn COD bắt buộc có ảnh chứng minh shipper đã nhận tiền");
+        }
+
         order.setDeliveryProofImage(proofImageUrl.trim());
+        order.setCodPaymentProofImage(codOrder ? codPaymentProofImageUrl.trim() : null);
         order.setDeliveredAt(java.time.LocalDateTime.now());
         order.setStatus(OrderStatus.DELIVERED);
-        if ("COD".equalsIgnoreCase(order.getPaymentMethod())) {
+        if (codOrder) {
             order.setPaymentStatus(PaymentStatus.PAID);
         }
         Order saved = orderRepository.saveAndFlush(order);
-        recordShippingEvent(saved, OrderStatus.DELIVERED, "Giao hàng thành công, đã có ảnh xác nhận", "SHIPPER");
+        recordShippingEvent(saved, OrderStatus.DELIVERED,
+                codOrder
+                        ? "Giao hàng thành công, đã có ảnh giao hàng và ảnh chứng minh thu tiền COD"
+                        : "Giao hàng thành công, đã có ảnh xác nhận",
+                "SHIPPER");
         return mapToResponse(saved);
     }
 
@@ -396,6 +411,7 @@ public class OrderServiceImpl implements OrderService {
                 .assignedShipperName(order.getAssignedShipper() != null ? order.getAssignedShipper().getFullname() : null)
                 .assignedShipperEmail(order.getAssignedShipper() != null ? order.getAssignedShipper().getEmail() : null)
                 .deliveryProofImage(order.getDeliveryProofImage())
+                .codPaymentProofImage(order.getCodPaymentProofImage())
                 .deliveredAt(order.getDeliveredAt())
                 .deliveryFailureReason(order.getDeliveryFailureReason())
                 .deliveryFailedAt(order.getDeliveryFailedAt())

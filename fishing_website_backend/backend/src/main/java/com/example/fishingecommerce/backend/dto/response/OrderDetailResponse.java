@@ -29,6 +29,7 @@ public class OrderDetailResponse {
     private String assignedShipperName;
     private String assignedShipperEmail;
     private String deliveryProofImage;
+    private String codPaymentProofImage;
     private LocalDateTime deliveredAt;
     private String deliveryFailureReason;
     private LocalDateTime deliveryFailedAt;
