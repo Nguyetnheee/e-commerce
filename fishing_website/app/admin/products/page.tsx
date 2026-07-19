@@ -91,16 +91,23 @@ export default function AdminProductsPage() {
   const [editProdName, setEditProdName] = useState('');
   const [editProdImage, setEditProdImage] = useState('');
   const [editProdDesc, setEditProdDesc] = useState('');
+  const [editProdParentCat, setEditProdParentCat] = useState('');
   const [editProdCat, setEditProdCat] = useState('');
   const [editProdBrand, setEditProdBrand] = useState('');
   const [editProdSupplier, setEditProdSupplier] = useState('');
+  const [editVariantPrices, setEditVariantPrices] = useState<Record<string, string>>({});
   const [savingEditProduct, setSavingEditProduct] = useState(false);
 
   const handleOpenEditProduct = (p: any) => {
+    const parentCategory = categories.find((category) =>
+      collectCategoryIds(category).includes(String(p.categoryId))
+    );
     setEditingProduct(p);
+    setSelectedProduct(p);
     setEditProdName(p.name || '');
     setEditProdImage(p.image || '');
     setEditProdDesc(p.description || '');
+    setEditProdParentCat(parentCategory ? String(parentCategory.id) : '');
     setEditProdCat(String(p.categoryId || ''));
     setEditProdBrand(String(p.brandId || ''));
     setEditProdSupplier(String(p.supplierId || ''));
@@ -126,6 +133,19 @@ export default function AdminProductsPage() {
         supplierId: editProdSupplier ? Number(editProdSupplier) : undefined,
         isVisible: editingProduct.isVisible ?? true
       });
+      const changedPrices = variants.filter((variant) => {
+        const nextPrice = Number(editVariantPrices[String(variant.id)]);
+        const currentPrice = Number(variant.basePrice ?? variant.price ?? 0);
+        return Number.isFinite(nextPrice) && nextPrice > 0 && nextPrice !== currentPrice;
+      });
+      await Promise.all(
+        changedPrices.map((variant) =>
+          adminApi.updateVariantPrice(
+            variant.id,
+            Number(editVariantPrices[String(variant.id)])
+          )
+        )
+      );
       alert('Cập nhật thông tin sản phẩm thành công!');
       setEditingProduct(null);
       loadProducts();
@@ -227,6 +247,14 @@ export default function AdminProductsPage() {
       const data = await productApi.getVariantsByProductId(productId);
       if (Array.isArray(data)) {
         setVariants(data);
+        setEditVariantPrices(
+          Object.fromEntries(
+            data.map((variant) => [
+              String(variant.id),
+              String(variant.basePrice ?? variant.price ?? 0),
+            ])
+          )
+        );
       }
     } catch (err) {
       console.error('Error loading product variants:', err);
@@ -641,10 +669,10 @@ export default function AdminProductsPage() {
       </div>
 
       {/* MAIN TWO-COLUMN SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-md">
+      <div className="grid grid-cols-1 gap-md">
         
         {/* LEFT 2 COLUMNS: Products List Table */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-outline-variant/20 shadow-sm overflow-hidden text-left">
+        <div className="bg-white rounded-2xl border border-outline-variant/20 shadow-sm overflow-hidden text-left">
           <div className="overflow-x-auto">
             {loading ? (
               <div className="py-20 text-center font-semibold text-on-surface-variant flex flex-col items-center gap-sm">
@@ -723,14 +751,14 @@ export default function AdminProductsPage() {
                               className="text-primary hover:text-white bg-primary/10 hover:bg-primary px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedProduct(p);
+                                handleOpenEditProduct(p);
                               }}
                             >
                               Xem chi tiết
                             </button>
                             <button
                               type="button"
-                              className="text-slate-600 hover:text-white bg-slate-100 hover:bg-slate-700 p-1.5 rounded-lg transition-all"
+                              className="hidden"
                               title="Sửa thông tin sản phẩm"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -741,7 +769,7 @@ export default function AdminProductsPage() {
                             </button>
                             <button 
                               type="button"
-                              className="text-red-500 hover:text-white bg-red-50 hover:bg-red-600 p-1.5 rounded-lg transition-all"
+                              className="hidden"
                               title="Xóa sản phẩm"
                               onClick={async (e) => {
                                 e.stopPropagation();
@@ -772,7 +800,7 @@ export default function AdminProductsPage() {
         </div>
 
         {/* RIGHT COLUMN: Selected Product Detail & Variants Drawer */}
-        <div className="bg-white p-md rounded-2xl border border-outline-variant/20 shadow-sm text-left h-fit space-y-md">
+        <div className="hidden">
           {selectedProduct ? (
             <div className="space-y-md">
               
@@ -1197,7 +1225,7 @@ export default function AdminProductsPage() {
       {editingProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 overflow-y-auto p-sm backdrop-blur-xs">
           <div className="flex min-h-full items-center justify-center py-8">
-            <div className="bg-white rounded-3xl max-w-xl w-full p-md md:p-lg text-left shadow-2xl">
+            <div className="bg-white rounded-3xl max-w-4xl w-full p-md md:p-lg text-left shadow-2xl">
               <h3 className="text-headline-sm font-bold text-on-surface tracking-tight mb-md pb-xs border-b border-outline-variant/10 flex items-center gap-xs">
                 <Edit3 className="w-5 h-5 text-primary" />
                 <span>Chỉnh sửa thông tin sản phẩm #{editingProduct.id}</span>
@@ -1225,13 +1253,33 @@ export default function AdminProductsPage() {
                       Danh mục sản phẩm
                     </label>
                     <select
-                      value={editProdCat}
-                      onChange={(e) => setEditProdCat(e.target.value)}
+                      value={editProdParentCat}
+                      onChange={(e) => {
+                        const parentId = e.target.value;
+                        const parent = categories.find((category) => String(category.id) === parentId);
+                        setEditProdParentCat(parentId);
+                        setEditProdCat(parent?.children?.length ? String(parent.children[0].id) : parentId);
+                      }}
                       className="w-full bg-[#f8f9fa] border border-[#e5e7eb] focus:border-primary rounded-lg py-2 px-3 focus:outline-none cursor-pointer font-sans"
                     >
                       <option value="">Chọn danh mục...</option>
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5">
+                    <label className="font-bold text-on-surface-variant">
+                      Loại sản phẩm
+                    </label>
+                    <select
+                      value={editProdCat}
+                      onChange={(e) => setEditProdCat(e.target.value)}
+                      className="w-full bg-[#f8f9fa] border border-[#e5e7eb] focus:border-primary rounded-lg py-2 px-3 focus:outline-none cursor-pointer font-sans"
+                    >
+                      {(categories.find((category) => String(category.id) === editProdParentCat)?.children || []).map((category: any) => (
+                        <option key={category.id} value={category.id}>{category.name}</option>
                       ))}
                     </select>
                   </div>
@@ -1250,6 +1298,39 @@ export default function AdminProductsPage() {
                       {brands.map((b) => (
                         <option key={b.id} value={b.id}>{b.name}</option>
                       ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5">
+                    <label className="font-bold text-on-surface-variant">
+                      Nhà cung cấp
+                    </label>
+                    <select
+                      value={editProdSupplier}
+                      onChange={(e) => setEditProdSupplier(e.target.value)}
+                      className="w-full bg-[#f8f9fa] border border-[#e5e7eb] focus:border-primary rounded-lg py-2 px-3 focus:outline-none cursor-pointer font-sans"
+                    >
+                      <option value="">Chọn nhà cung cấp...</option>
+                      {suppliers.map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5">
+                    <label className="font-bold text-on-surface-variant">
+                      Trạng thái hiển thị
+                    </label>
+                    <select
+                      value={editingProduct.isVisible ? 'true' : 'false'}
+                      onChange={(e) => setEditingProduct({
+                        ...editingProduct,
+                        isVisible: e.target.value === 'true',
+                      })}
+                      className="w-full bg-[#f8f9fa] border border-[#e5e7eb] focus:border-primary rounded-lg py-2 px-3 focus:outline-none cursor-pointer font-sans"
+                    >
+                      <option value="true">Hiển thị</option>
+                      <option value="false">Ẩn sản phẩm</option>
                     </select>
                   </div>
 
@@ -1280,10 +1361,78 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-sm pt-md border-t border-outline-variant/10">
+                <div className="border-t border-outline-variant/20 pt-sm">
+                  <div className="flex items-center justify-between mb-xs">
+                    <h4 className="font-bold text-on-surface flex items-center gap-xs">
+                      <DollarSign className="w-4 h-4 text-primary" />
+                      Giá bán theo biến thể
+                    </h4>
+                    <span className="text-[11px] text-on-surface-variant">{variants.length} biến thể</span>
+                  </div>
+                  {loadingVariants ? (
+                    <div className="py-4 text-center text-on-surface-variant">Đang tải giá sản phẩm...</div>
+                  ) : variants.length === 0 ? (
+                    <div className="py-4 text-center border border-dashed rounded-lg text-on-surface-variant">
+                      Sản phẩm chưa có biến thể và giá bán.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-xs max-h-52 overflow-y-auto">
+                      {variants.map((variant) => (
+                        <div key={variant.id} className="rounded-lg border border-outline-variant/30 bg-slate-50 p-xs">
+                          <div className="flex items-center justify-between gap-xs mb-1">
+                            <div className="min-w-0">
+                              <div className="font-bold truncate">{variant.variantName || variant.name || 'Mặc định'}</div>
+                              <div className="font-mono text-[10px] text-on-surface-variant">{variant.sku}</div>
+                            </div>
+                            <span className="text-[10px] whitespace-nowrap">
+                              Tồn kho: <strong>{variant.stockQuantity}</strong>
+                            </span>
+                          </div>
+                          <label className="block text-[10px] font-bold text-on-surface-variant mb-0.5">
+                            Giá bán (VND)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={editVariantPrices[String(variant.id)] ?? ''}
+                            onChange={(e) => setEditVariantPrices((current) => ({
+                              ...current,
+                              [String(variant.id)]: e.target.value,
+                            }))}
+                            className="w-full bg-white border border-[#e5e7eb] focus:border-primary rounded-lg py-1.5 px-3 focus:outline-none"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap justify-between gap-sm pt-md border-t border-outline-variant/10">
                   <button
                     type="button"
-                    onClick={() => setEditingProduct(null)}
+                    onClick={async () => {
+                      if (!confirm(`Bạn có chắc muốn xóa sản phẩm "${editingProduct.name}" (ID #${editingProduct.id})?`)) return;
+                      try {
+                        await adminApi.deleteProduct(editingProduct.id);
+                        setEditingProduct(null);
+                        setSelectedProduct(null);
+                        await loadProducts();
+                        alert('Đã xóa sản phẩm thành công!');
+                      } catch (err: any) {
+                        alert(err.message || 'Không thể xóa sản phẩm.');
+                      }
+                    }}
+                    className="px-lg py-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-lg font-bold cursor-pointer border border-red-200"
+                  >
+                    XÓA SẢN PHẨM
+                  </button>
+                  <div className="flex gap-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setSelectedProduct(null);
+                    }}
                     className="px-lg py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-on-surface font-bold cursor-pointer border-none"
                   >
                     Hủy
@@ -1295,6 +1444,7 @@ export default function AdminProductsPage() {
                   >
                     {savingEditProduct ? 'ĐANG LƯU...' : 'LƯU THAY ĐỔI'}
                   </button>
+                  </div>
                 </div>
               </form>
             </div>
