@@ -19,34 +19,21 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../../../components/ConfirmModal';
 
-const initialProducts = [
-  { sku: 'WS-CAMP-004', name: 'Lều Dã Ngoại Peak-4 Naturehike', stock: 2, min: 10, shelf: 'Kệ A-03', status: 'Cực thấp' },
-  { sku: 'WS-FISH-102', name: 'Cần câu Carbon Sông Suối Shimano', stock: 4, min: 15, shelf: 'Kệ C-12', status: 'Sắp hết' },
-  { sku: 'WS-FISH-305', name: 'Dây Câu Braid Siêu Bền 150m', stock: 5, min: 20, shelf: 'Kệ B-08', status: 'Sắp hết' },
-  { sku: 'WS-CAMP-012', name: 'Ghế dã ngoại xếp gọn WildStream', stock: 1, min: 8, shelf: 'Kệ D-02', status: 'Cực thấp' },
-  { sku: 'WS-FISH-001', name: 'Cần câu Shimano Stella C5000XG', stock: 12, min: 5, shelf: 'Kệ C-01', status: 'Bình thường' },
-  { sku: 'WS-CAMP-002', name: 'Bếp Ga Dã Ngoại Xếp Gọn', stock: 18, min: 5, shelf: 'Kệ B-02', status: 'Bình thường' },
-  { sku: 'WS-CAMP-009', name: 'Túi Ngủ Du Lịch Đi Phượt', stock: 15, min: 8, shelf: 'Kệ D-04', status: 'Bình thường' },
-];
-
-const initialLogs = [
-  { id: 1, time: '10 phút trước', action: 'Xuất kho 2 Cần Câu Stella cho Shipper (#WS-1042)', tag: 'XUẤT KHO' },
-  { id: 2, time: '30 phút trước', action: 'Hoàn trả hàng dán nhãn "Accepted" đơn hủy về kệ A-03', tag: 'HOÀN TRẢ' },
-  { id: 3, time: '2 giờ trước', action: 'Nhập kho 50 Ghế dã ngoại xếp gọn WildStream', tag: 'NHẬP KHO' },
-  { id: 4, time: '3 giờ trước', action: 'Kiểm kê định kỳ Hàng Cắm Trại kệ D-02 (khớp 100%)', tag: 'KIỂM KHO' },
-];
-
 export default function KhoDashboardPage() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Dynamic States synced with LocalStorage & API
-  const [products, setProducts] = useState<any[]>(initialProducts);
-  const [logs, setLogs] = useState(initialLogs);
+  const [products, setProducts] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [vouchers, setVouchers] = useState<any[]>([]);
-  const [totalStock, setTotalStock] = useState(12450);
-  const [todayBatches, setTodayBatches] = useState(3);
+  const [warehouseStats, setWarehouseStats] = useState({
+    totalStock: 0,
+    lowStockSkuCount: 0,
+    packingOrderCount: 0,
+    todayReceiptCount: 0,
+    lowStockThreshold: 5,
+  });
   
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -86,43 +73,55 @@ export default function KhoDashboardPage() {
     return 'Bình thường';
   };
 
-  // Sync / Load data from API with fallback to localStorage
   const fetchRealWarehouseData = async () => {
     try {
-      // 1. Fetch Out-of-Stock alerts from API
+      const stats = await adminApi.getInventoryDashboard();
+      setWarehouseStats({
+        totalStock: Number(stats?.totalStock || 0),
+        lowStockSkuCount: Number(stats?.lowStockSkuCount || 0),
+        packingOrderCount: Number(stats?.packingOrderCount || 0),
+        todayReceiptCount: Number(stats?.todayReceiptCount || 0),
+        lowStockThreshold: Number(stats?.lowStockThreshold || 5),
+      });
+    } catch (e) {
+      console.error('Không thể tải số liệu tổng hợp kho:', e);
+    }
+
+    try {
       const alerts = await adminApi.getOutOfStockAlerts();
-      if (Array.isArray(alerts) && alerts.length > 0) {
-        const mappedAlerts = alerts.map((v: any) => ({
+      if (Array.isArray(alerts)) {
+        setProducts(alerts.map((v: any) => ({
           id: v.variantId || v.id,
-          sku: v.sku,
-          name: v.variantName || 'Sản phẩm biến thể',
-          stock: v.stockQuantity,
-          min: 10,
-          shelf: 'Kệ C-01',
-          status: v.stockQuantity === 0 ? 'Hết hàng' : 'Sắp hết'
-        }));
-        setProducts(mappedAlerts);
-        localStorage.setItem('kho_products', JSON.stringify(mappedAlerts));
+          sku: v.sku || `VAR-${v.id}`,
+          name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Lựa chọn sản phẩm #${v.id}`,
+          stock: Number(v.stockQuantity || 0),
+          min: warehouseStats.lowStockThreshold,
+          shelf: 'Chưa cập nhật',
+          status: Number(v.stockQuantity || 0) === 0 ? 'Hết hàng' : 'Sắp hết'
+        })));
       }
     } catch (e) {
-      console.log('Using localStorage products fallback.');
+      console.error('Không thể tải cảnh báo tồn kho:', e);
     }
 
     try {
       // 2. Fetch logs from API
       const apiLogs = await adminApi.getInventoryLogs();
-      if (Array.isArray(apiLogs) && apiLogs.length > 0) {
-        const mappedLogs = apiLogs.map((log: any) => ({
+      if (Array.isArray(apiLogs)) {
+        setLogs(apiLogs.map((log: any) => {
+          const quantity = Number(log.quantityChange || 0);
+          const isImport = quantity > 0;
+          const createdAt = log.createdAt ? new Date(log.createdAt) : null;
+          return {
           id: log.id,
-          time: new Date(log.changeDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-          action: `${log.changeType === 'IMPORT' ? 'Nhập kho' : 'Xuất kho'} ${log.quantity} chiếc biến thể (Biến thể ID: #${log.variantId}) - Lý do: ${log.reason || 'không rõ'}`,
-          tag: log.changeType === 'IMPORT' ? 'NHẬP KHO' : 'XUẤT KHO'
+          time: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toLocaleString('vi-VN') : 'Chưa có thời gian',
+          action: `${isImport ? 'Nhập kho' : 'Xuất kho'} ${Math.abs(quantity)} ${log.productName || 'sản phẩm'}${log.variantName ? ` — ${log.variantName}` : ''}. Tồn kho: ${log.previousStock ?? 0} → ${log.newStock ?? 0}. Lý do: ${log.reason || 'Không ghi chú'}`,
+          tag: isImport ? 'NHẬP KHO' : 'XUẤT KHO'
+          };
         }));
-        setLogs(mappedLogs);
-        localStorage.setItem('kho_logs', JSON.stringify(mappedLogs));
       }
     } catch (e) {
-      console.log('Using localStorage logs fallback.');
+      console.error('Không thể tải lịch sử kho:', e);
     }
 
     try {
@@ -140,19 +139,15 @@ export default function KhoDashboardPage() {
           items: v.items || []
         }));
         setVouchers(mappedVouchers);
-        localStorage.setItem('kho_vouchers', JSON.stringify(mappedVouchers));
       }
     } catch (e) {
-      console.log('Using localStorage vouchers fallback.');
+      console.error('Không thể tải phiếu nhập kho:', e);
     }
 
     try {
-      // 3. Fetch Orders in PENDING / PACKING status
       setLoadingOrders(true);
-      const pendingRes = await adminApi.getOrders('PENDING');
       const packingRes = await adminApi.getOrders('PACKING');
-      const combined = [...(Array.isArray(pendingRes) ? pendingRes : []), ...(Array.isArray(packingRes) ? packingRes : [])];
-      setOrders(combined);
+      setOrders(Array.isArray(packingRes) ? packingRes : []);
     } catch (e) {
       console.error('Lỗi khi tải đơn hàng kho:', e);
     } finally {
@@ -171,42 +166,6 @@ export default function KhoDashboardPage() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedProducts = localStorage.getItem('kho_products');
-      if (savedProducts) {
-        try { setProducts(JSON.parse(savedProducts)); } catch (e) { console.error(e); }
-      } else {
-        localStorage.setItem('kho_products', JSON.stringify(initialProducts));
-      }
-
-      const savedLogs = localStorage.getItem('kho_logs');
-      if (savedLogs) {
-        try { setLogs(JSON.parse(savedLogs)); } catch (e) { console.error(e); }
-      } else {
-        localStorage.setItem('kho_logs', JSON.stringify(initialLogs));
-      }
-
-      const savedVouchers = localStorage.getItem('kho_vouchers');
-      if (savedVouchers) {
-        try { setVouchers(JSON.parse(savedVouchers)); } catch (e) { console.error(e); }
-      } else {
-        localStorage.setItem('kho_vouchers', JSON.stringify([]));
-      }
-
-      const savedTotalStock = localStorage.getItem('kho_total_stock');
-      if (savedTotalStock) {
-        setTotalStock(parseInt(savedTotalStock, 10));
-      } else {
-        localStorage.setItem('kho_total_stock', '12450');
-      }
-
-      const savedTodayBatches = localStorage.getItem('kho_today_batches');
-      if (savedTodayBatches) {
-        setTodayBatches(parseInt(savedTodayBatches, 10));
-      } else {
-        localStorage.setItem('kho_today_batches', '3');
-      }
-    }
     fetchRealWarehouseData();
   }, []);
 
@@ -257,54 +216,7 @@ export default function KhoDashboardPage() {
       alert(`Đã gửi yêu cầu bổ sung hàng hóa cho mã SKU: ${sku}. Phòng Mua hàng sẽ phê duyệt.`);
     }
     
-    setProducts(prev => {
-      const updated = prev.map(p => {
-        if (p.sku === sku) {
-          const newStock = p.stock + 15;
-          return { ...p, status: 'Đang nhập', stock: newStock };
-        }
-        return p;
-      });
-      localStorage.setItem('kho_products', JSON.stringify(updated));
-      return updated;
-    });
-
-    // Add log
-    const updatedLogs = [
-      {
-        id: Date.now(),
-        time: 'Vừa xong',
-        action: `Gửi yêu cầu bổ sung 15 chiếc cho SKU: ${sku}`,
-        tag: 'NHẬP KHO'
-      },
-      ...logs
-    ];
-    setLogs(updatedLogs);
-    localStorage.setItem('kho_logs', JSON.stringify(updatedLogs));
-  };
-
-  const handleResetData = () => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Khôi phục dữ liệu gốc',
-      message: 'Bạn có chắc chắn muốn khôi phục dữ liệu kho về trạng thái ban đầu? Tất cả phiếu nhập mới tạo sẽ bị xóa.',
-      onConfirm: () => {
-        localStorage.removeItem('kho_products');
-        localStorage.removeItem('kho_logs');
-        localStorage.removeItem('kho_vouchers');
-        localStorage.removeItem('kho_total_stock');
-        localStorage.removeItem('kho_today_batches');
-        
-        setProducts(initialProducts);
-        setLogs(initialLogs);
-        setVouchers([]);
-        setTotalStock(12450);
-        setTodayBatches(3);
-        
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        alert('Đã khôi phục dữ liệu mẫu thành công!');
-      }
-    });
+    await fetchRealWarehouseData();
   };
 
   // Generate Voucher code like PNK-YYYYMMDD-XXXX
@@ -386,7 +298,7 @@ export default function KhoDashboardPage() {
 
     try {
       // 1. Call Backend API to create warehouse receipt
-      await adminApi.createWarehouseReceipt({
+      const createdReceipt = await adminApi.createWarehouseReceipt({
         supplier: newVoucher.supplier,
         notes: newVoucher.notes || 'Nhập kho từ đối tác',
         items: itemsData
@@ -409,74 +321,6 @@ export default function KhoDashboardPage() {
         rejectedQuantity: 0
       });
 
-      const formattedVoucher = {
-        code: voucherCode,
-        supplier: newVoucher.supplier,
-        notes: newVoucher.notes,
-        createdBy: userEmail || 'kho@wildstream.com',
-        createdAt: new Date().toLocaleString('vi-VN'),
-        totalQty,
-        totalValue,
-        items: validItems.map(item => ({
-          sku: item.sku || `WS-NEW-${Math.floor(100 + Math.random() * 900)}`,
-          qty: Number(item.qty),
-          price: Number(item.price),
-          shelf: item.shelf || 'Kệ Tạm'
-        }))
-      };
-
-      // Update products stock levels
-      const updatedProducts = [...products];
-      itemsData.forEach((item, index) => {
-        const existingIndex = updatedProducts.findIndex(p => p.sku === item.sku);
-        if (existingIndex > -1) {
-          const newStock = updatedProducts[existingIndex].stock + item.qty;
-          updatedProducts[existingIndex] = {
-            ...updatedProducts[existingIndex],
-            stock: newStock,
-            shelf: item.shelf || updatedProducts[existingIndex].shelf,
-            status: getStatus(newStock, updatedProducts[existingIndex].min)
-          };
-        } else {
-          const newProd = {
-            sku: item.sku,
-            name: validItems[index]?.name || 'Sản phẩm mới',
-            stock: item.qty,
-            min: 5, 
-            shelf: item.shelf,
-            status: getStatus(item.qty, 5)
-          };
-          updatedProducts.push(newProd);
-        }
-      });
-
-      // Create new logs
-      const newLog = {
-        id: Date.now(),
-        time: 'Vừa xong',
-        action: `Nhập kho ${totalQty} sản phẩm từ ${formattedVoucher.supplier} (#${formattedVoucher.code}) & Đã kiểm định ĐẠT`,
-        tag: 'NHẬP KHO'
-      };
-
-      const updatedLogs = [newLog, ...logs];
-      const updatedVouchers = [formattedVoucher, ...vouchers];
-      const newTotalStock = totalStock + totalQty;
-      const newTodayBatches = todayBatches + 1;
-
-      // Save to state
-      setProducts(updatedProducts);
-      setLogs(updatedLogs);
-      setVouchers(updatedVouchers);
-      setTotalStock(newTotalStock);
-      setTodayBatches(newTodayBatches);
-
-      // Save to localStorage
-      localStorage.setItem('kho_products', JSON.stringify(updatedProducts));
-      localStorage.setItem('kho_logs', JSON.stringify(updatedLogs));
-      localStorage.setItem('kho_vouchers', JSON.stringify(updatedVouchers));
-      localStorage.setItem('kho_total_stock', String(newTotalStock));
-      localStorage.setItem('kho_today_batches', String(newTodayBatches));
-
       // Reset form
       setNewVoucher({
         supplier: 'Shimano Japan Co.',
@@ -486,7 +330,7 @@ export default function KhoDashboardPage() {
         ]
       });
       setIsCreateModalOpen(false);
-      alert(`Nhập kho thành công! Đã tạo phiếu nhập ${voucherCode} với tổng cộng ${totalQty} sản phẩm & Tự động kiểm định ĐẠT.`);
+      alert(`Nhập kho thành công! Đã tạo phiếu nhập ${createdReceipt?.code || voucherCode} với tổng cộng ${totalQty} sản phẩm và kiểm định đạt.`);
       
       // Reload receipts from server
       fetchRealWarehouseData();
@@ -573,25 +417,17 @@ export default function KhoDashboardPage() {
             <span className="text-label-sm text-[#a4f1b2] uppercase tracking-widest font-bold block mb-1">Hệ thống quản lý kho vận</span>
             <h1 className="text-headline-lg-mobile md:text-headline-md font-bold tracking-tight">Khu vực điều hành Kho hàng</h1>
             <p className="text-body-md text-white/80 mt-1">
-              Theo dõi xuất nhập hàng hóa, vị trí kệ hàng và mức tồn kho tối thiểu. Có <strong className="text-[#a4f1b2]">{products.filter(p => p.stock <= p.min).length} mã SKU</strong> dưới mức an toàn.
+              Số liệu được tổng hợp trực tiếp từ cơ sở dữ liệu. Có <strong className="text-[#a4f1b2]">{warehouseStats.lowStockSkuCount} mã SKU</strong> còn tối đa {warehouseStats.lowStockThreshold} sản phẩm.
             </p>
           </div>
           
           <div className="flex items-center gap-xs">
             <button 
-              onClick={handleResetData}
-              className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[11px] font-semibold flex items-center gap-xs transition-colors cursor-pointer"
-              title="Khôi phục dữ liệu gốc để thử nghiệm"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Reset dữ liệu</span>
-            </button>
-            <button 
-              onClick={() => alert('Đang đồng bộ hóa dữ liệu kiểm kho RFID...')}
+              onClick={() => fetchRealWarehouseData()}
               className="bg-white/10 hover:bg-white/20 text-white backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-label-sm font-semibold flex items-center gap-xs transition-colors"
             >
-              <RefreshCw className="w-4.5 h-4.5 animate-spin-slow" />
-              <span>Đồng bộ RFID</span>
+              <RefreshCw className="w-4.5 h-4.5" />
+              <span>Làm mới số liệu</span>
             </button>
           </div>
         </div>
@@ -603,10 +439,8 @@ export default function KhoDashboardPage() {
           <div className="bg-white p-sm rounded-2xl border border-outline-variant/20 shadow-sm flex items-center justify-between">
             <div>
               <span className="text-label-sm font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Tổng sản phẩm tồn</span>
-              <span className="text-headline-md font-bold text-[#1f6c3a] tracking-tight">{totalStock.toLocaleString('vi-VN')}sp</span>
-              <span className="text-[11px] text-secondary font-bold block mt-1">
-                +2.4% so với tuần trước
-              </span>
+              <span className="text-headline-md font-bold text-[#1f6c3a] tracking-tight">{warehouseStats.totalStock.toLocaleString('vi-VN')} sp</span>
+              <span className="text-[11px] text-secondary font-bold block mt-1">Tổng tồn các SKU trong DB</span>
             </div>
             <div className="w-12 h-12 rounded-xl bg-secondary/10 text-[#1f6c3a] flex items-center justify-center flex-shrink-0">
               <Package className="w-6 h-6" />
@@ -617,7 +451,7 @@ export default function KhoDashboardPage() {
           <div className="bg-white p-sm rounded-2xl border border-outline-variant/20 shadow-sm flex items-center justify-between">
             <div>
               <span className="text-label-sm font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Cảnh báo sắp hết</span>
-              <span className="text-headline-md font-bold text-amber-600 tracking-tight">{products.filter(p => p.stock <= p.min).length} SKU</span>
+              <span className="text-headline-md font-bold text-amber-600 tracking-tight">{warehouseStats.lowStockSkuCount} SKU</span>
               <span className="text-[11px] text-amber-600 font-bold block mt-1">
                 Cần bổ sung gấp
               </span>
@@ -631,7 +465,7 @@ export default function KhoDashboardPage() {
           <div className="bg-white p-sm rounded-2xl border border-outline-variant/20 shadow-sm flex items-center justify-between">
             <div>
               <span className="text-label-sm font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Đơn chờ đóng gói</span>
-              <span className="text-headline-md font-bold text-[#1f6c3a] tracking-tight">45 đơn</span>
+              <span className="text-headline-md font-bold text-[#1f6c3a] tracking-tight">{warehouseStats.packingOrderCount} đơn</span>
               <span className="text-[11px] text-secondary font-bold block mt-1">
                 Đang chuẩn bị nhãn
               </span>
@@ -645,7 +479,7 @@ export default function KhoDashboardPage() {
           <div className="bg-white p-sm rounded-2xl border border-outline-variant/20 shadow-sm flex items-center justify-between">
             <div>
               <span className="text-label-sm font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Nhập kho hôm nay</span>
-              <span className="text-headline-md font-bold text-[#1f6c3a] tracking-tight">{todayBatches} lô hàng</span>
+              <span className="text-headline-md font-bold text-[#1f6c3a] tracking-tight">{warehouseStats.todayReceiptCount} lô hàng</span>
               <span className="text-[11px] text-secondary font-bold block mt-1">
                 Đã kiểm định SKU
               </span>
@@ -676,7 +510,7 @@ export default function KhoDashboardPage() {
                         : 'border-transparent text-on-surface-variant/60 hover:text-on-surface'
                     }`}
                   >
-                    Cảnh báo tồn kho ({products.filter(p => p.stock <= p.min).length})
+                    Cảnh báo tồn kho ({warehouseStats.lowStockSkuCount})
                   </button>
                   <button
                     onClick={() => setActiveTab('vouchers')}
@@ -865,8 +699,8 @@ export default function KhoDashboardPage() {
                           <tr key={o.id} className="hover:bg-surface-container-lowest transition-colors">
                             <td className="py-3 font-mono font-bold text-on-surface">#{o.id}</td>
                             <td className="py-3">
-                              <span className="font-semibold text-on-surface block">{o.receiverName}</span>
-                              <span className="text-[11px] text-on-surface-variant/60">{o.receiverPhone}</span>
+                              <span className="font-semibold text-on-surface block">{o.recipientName || 'Chưa có tên người nhận'}</span>
+                              <span className="text-[11px] text-on-surface-variant/60">{o.recipientPhone || 'Chưa có số điện thoại'}</span>
                             </td>
                             <td className="py-3 max-w-[200px] truncate" title={o.shippingAddress}>
                               {o.shippingAddress}
@@ -952,15 +786,15 @@ export default function KhoDashboardPage() {
               
               <div className="grid grid-cols-1 gap-xs font-sans">
                 <button
-                  onClick={() => alert('Vui lòng mở ứng dụng quét mã vạch trên điện thoại Handheld.')}
+                  onClick={() => fetchRealWarehouseData()}
                   className="flex items-center gap-xs text-left p-xs rounded-xl hover:bg-secondary/5 border border-outline-variant/30 hover:border-secondary text-label-sm font-semibold transition-all duration-200 w-full"
                 >
                   <div className="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
-                    <Package className="w-4 h-4" />
+                    <RefreshCw className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-on-surface">Kiểm kê hàng RFID</div>
-                    <div className="text-[10px] text-on-surface-variant font-normal">Quét tự động kệ hàng hiện tại</div>
+                    <div className="text-on-surface">Đồng bộ dữ liệu kho</div>
+                    <div className="text-[10px] text-on-surface-variant font-normal">Tải lại số liệu trực tiếp từ cơ sở dữ liệu</div>
                   </div>
                 </button>
 

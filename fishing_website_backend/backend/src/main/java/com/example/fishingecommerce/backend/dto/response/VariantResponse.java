@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 public class VariantResponse {
     private Long id;
     private Long productId;
+    private String productName;
     private String sku;
     private String variantName;
     private BigDecimal basePrice;

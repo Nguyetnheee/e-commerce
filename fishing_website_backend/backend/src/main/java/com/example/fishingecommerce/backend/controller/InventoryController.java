@@ -1,6 +1,7 @@
 package com.example.fishingecommerce.backend.controller;
 
 import com.example.fishingecommerce.backend.dto.response.InventoryLogResponse;
+import com.example.fishingecommerce.backend.dto.response.InventoryDashboardResponse;
 import com.example.fishingecommerce.backend.dto.response.VariantResponse;
 import com.example.fishingecommerce.backend.service.InventoryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +31,12 @@ public class InventoryController {
     @Operation(summary = "Lấy cảnh báo hết hàng", description = "Lấy danh sách các biến thể sản phẩm sắp hết hàng hoặc đã hết hàng")
     public ResponseEntity<List<VariantResponse>> getOutOfStockAlerts() {
         return ResponseEntity.ok(inventoryService.findOutOfStockAlerts());
+    }
+
+    @GetMapping("/dashboard")
+    @Operation(summary = "Số liệu dashboard kho", description = "Tổng hợp trực tiếp tồn kho, cảnh báo, đơn đóng gói và phiếu nhập trong DB")
+    public ResponseEntity<InventoryDashboardResponse> getDashboardSummary() {
+        return ResponseEntity.ok(inventoryService.getDashboardSummary());
     }
 
     @GetMapping("/logs")

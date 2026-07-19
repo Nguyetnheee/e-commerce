@@ -1,11 +1,15 @@
 package com.example.fishingecommerce.backend.service.impl;
 
 import com.example.fishingecommerce.backend.dto.response.InventoryLogResponse;
+import com.example.fishingecommerce.backend.dto.response.InventoryDashboardResponse;
 import com.example.fishingecommerce.backend.dto.response.VariantResponse;
 import com.example.fishingecommerce.backend.entity.InventoryLog;
 import com.example.fishingecommerce.backend.entity.ProductVariant;
 import com.example.fishingecommerce.backend.repository.InventoryLogRepository;
 import com.example.fishingecommerce.backend.repository.ProductVariantRepository;
+import com.example.fishingecommerce.backend.repository.OrderRepository;
+import com.example.fishingecommerce.backend.repository.WarehouseReceiptRepository;
+import com.example.fishingecommerce.backend.enums.OrderStatus;
 import com.example.fishingecommerce.backend.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,15 +22,42 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
 
+    private static final int LOW_STOCK_THRESHOLD = 5;
+
     private final ProductVariantRepository variantRepository;
     private final InventoryLogRepository inventoryLogRepository;
+    private final OrderRepository orderRepository;
+    private final WarehouseReceiptRepository warehouseReceiptRepository;
 
     @Override
     public List<VariantResponse> findOutOfStockAlerts() {
         return variantRepository.findAll().stream()
-                .filter(v -> v.getStockQuantity() == null || v.getStockQuantity() == 0)
+                .filter(v -> v.getStockQuantity() == null || v.getStockQuantity() <= LOW_STOCK_THRESHOLD)
                 .map(ProductVariantServiceImpl::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public InventoryDashboardResponse getDashboardSummary() {
+        List<ProductVariant> variants = variantRepository.findAll();
+        long totalStock = variants.stream()
+                .map(ProductVariant::getStockQuantity)
+                .filter(java.util.Objects::nonNull)
+                .mapToLong(Integer::longValue)
+                .sum();
+        long lowStockCount = variants.stream()
+                .filter(v -> v.getStockQuantity() == null || v.getStockQuantity() <= LOW_STOCK_THRESHOLD)
+                .count();
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        LocalDateTime startOfNextDay = startOfDay.plusDays(1);
+
+        return InventoryDashboardResponse.builder()
+                .totalStock(totalStock)
+                .lowStockSkuCount(lowStockCount)
+                .packingOrderCount(orderRepository.countByStatus(OrderStatus.PACKING))
+                .todayReceiptCount(warehouseReceiptRepository.countByCreatedAtBetween(startOfDay, startOfNextDay))
+                .lowStockThreshold(LOW_STOCK_THRESHOLD)
+                .build();
     }
 
     @Override
@@ -40,7 +71,12 @@ public class InventoryServiceImpl implements InventoryService {
             logs = inventoryLogRepository.findAll();
         }
 
-        return logs.stream().map(this::mapToResponse).collect(Collectors.toList());
+        return logs.stream()
+                .sorted(java.util.Comparator.comparing(
+                        InventoryLog::getCreatedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())).reversed())
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     private InventoryLogResponse mapToResponse(InventoryLog log) {

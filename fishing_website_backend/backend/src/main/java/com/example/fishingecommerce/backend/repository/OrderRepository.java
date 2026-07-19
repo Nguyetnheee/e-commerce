@@ -12,6 +12,7 @@ import java.util.Optional;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByStatus(OrderStatus status);
+    long countByStatus(OrderStatus status);
     List<Order> findByStatusAndCreatedAtBetween(OrderStatus status, LocalDateTime from, LocalDateTime to);
     List<Order> findByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
     List<Order> findByUserId(Long userId);

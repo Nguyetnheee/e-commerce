@@ -112,6 +112,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         return VariantResponse.builder()
                 .id(variant.getId())
                 .productId(variant.getProduct() != null ? variant.getProduct().getId() : null)
+                .productName(variant.getProduct() != null ? variant.getProduct().getName() : null)
                 .sku(variant.getSku())
                 .variantName(variant.getVariantName())
                 .basePrice(variant.getBasePrice())
