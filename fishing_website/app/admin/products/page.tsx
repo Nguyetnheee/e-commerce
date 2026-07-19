@@ -449,7 +449,7 @@ export default function AdminProductsPage() {
         throw new Error('Khởi tạo sản phẩm thất bại.');
       }
 
-      alert('Thêm sản phẩm mới và biến thể mặc định thành công!');
+      alert('Thêm sản phẩm mới cùng giá bán mặc định thành công!');
       setIsAddProductOpen(false);
       
       // Reset form
@@ -487,15 +487,15 @@ export default function AdminProductsPage() {
     const newErrors: Record<string, string> = {};
 
     if (!newVarSku.trim()) {
-      newErrors.varSku = 'Mã SKU biến thể không được để trống!';
+      newErrors.varSku = 'Mã SKU không được để trống!';
     }
     if (!newVarName.trim()) {
-      newErrors.varName = 'Tên biến thể không được để trống!';
+      newErrors.varName = 'Tên lựa chọn sản phẩm không được để trống!';
     }
     if (!newVarPrice.trim()) {
-      newErrors.varPrice = 'Giá bán biến thể không được để trống!';
+      newErrors.varPrice = 'Giá bán không được để trống!';
     } else if (Number(newVarPrice) <= 0) {
-      newErrors.varPrice = 'Giá bán biến thể phải lớn hơn 0!';
+      newErrors.varPrice = 'Giá bán phải lớn hơn 0!';
     }
     if (!newVarStock.trim()) {
       newErrors.varStock = 'Số lượng tồn kho không được để trống!';
@@ -516,7 +516,7 @@ export default function AdminProductsPage() {
         basePrice: Number(newVarPrice),
         stockQuantity: Number(newVarStock)
       });
-      alert('Tạo biến thể mới thành công!');
+      alert('Tạo lựa chọn sản phẩm mới thành công!');
       setIsAddVariantOpen(false);
       
       // Reset form
@@ -528,7 +528,7 @@ export default function AdminProductsPage() {
 
       loadVariants(selectedProduct.id);
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi thêm biến thể.');
+      alert(err.message || 'Lỗi khi thêm lựa chọn sản phẩm.');
     } finally {
       setSavingVariant(false);
     }
@@ -572,7 +572,7 @@ export default function AdminProductsPage() {
     try {
       setSavingPrice(true);
       await adminApi.updateVariantPrice(editingPriceVariant.id, price);
-      alert('Cập nhật giá bán biến thể thành công!');
+      alert('Cập nhật giá bán thành công!');
       setEditingPriceVariant(null);
       setEditPriceVal('');
       if (selectedProduct) loadVariants(selectedProduct.id);
@@ -719,7 +719,7 @@ export default function AdminProductsPage() {
                     <th className="py-3 px-md">Ảnh</th>
                     <th className="py-3 px-md">Tên sản phẩm</th>
                     <th className="py-3 px-md">Trạng thái</th>
-                    <th className="py-3 px-md text-right">Biến thể</th>
+                    <th className="py-3 px-md text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/10 text-body-sm text-on-surface-variant">
@@ -878,7 +878,7 @@ export default function AdminProductsPage() {
               <div className="flex justify-between items-center">
                 <h4 className="font-extrabold text-[11px] uppercase tracking-wider text-slate-500 flex items-center gap-xs">
                   <Sliders className="w-3.5 h-3.5 text-primary" />
-                  <span>Danh sách Biến thể</span>
+                  <span>Các lựa chọn sản phẩm</span>
                 </h4>
                 <button
                   onClick={() => {
@@ -890,7 +890,7 @@ export default function AdminProductsPage() {
                   className="inline-flex items-center gap-0.5 text-primary hover:text-white bg-primary/10 hover:bg-primary font-bold text-[10px] px-2 py-1 rounded"
                 >
                   <ListPlus className="w-3 h-3" />
-                  <span>THÊM BIẾN THỂ</span>
+                  <span>THÊM LỰA CHỌN</span>
                 </button>
               </div>
 
@@ -898,11 +898,11 @@ export default function AdminProductsPage() {
               <div className="space-y-xs max-h-[350px] overflow-y-auto pr-xs">
                 {loadingVariants ? (
                   <div className="py-6 text-center text-on-surface-variant/60 font-medium">
-                    Đang tải biến thể...
+                    Đang tải thông tin sản phẩm...
                   </div>
                 ) : variants.length === 0 ? (
                   <div className="py-6 text-center text-on-surface-variant/50 font-medium text-label-sm border border-dashed rounded-xl">
-                    Chưa tạo biến thể nào.
+                    Chưa có lựa chọn sản phẩm nào.
                   </div>
                 ) : (
                   variants.map((v) => (
@@ -937,17 +937,17 @@ export default function AdminProductsPage() {
                           </button>
                           <button
                             onClick={async () => {
-                              if (!confirm(`Bạn có chắc muốn xóa biến thể "${v.variantName || v.name || v.sku}"?`)) return;
+                              if (!confirm(`Bạn có chắc muốn xóa lựa chọn "${v.variantName || v.name || v.sku}"?`)) return;
                               try {
                                 await adminApi.deleteVariant(v.id);
-                                alert('Đã xóa biến thể thành công!');
+                                alert('Đã xóa lựa chọn sản phẩm thành công!');
                                 if (selectedProduct) loadVariants(selectedProduct.id);
                               } catch (err: any) {
-                                alert(err.message || 'Không thể xóa biến thể.');
+                                alert(err.message || 'Không thể xóa lựa chọn sản phẩm.');
                               }
                             }}
                             className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="Xóa biến thể"
+                            title="Xóa lựa chọn sản phẩm"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -973,7 +973,7 @@ export default function AdminProductsPage() {
           ) : (
             <div className="py-20 text-center text-on-surface-variant/50 font-medium">
               <ShoppingBag className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <span>Bấm chọn một sản phẩm trong danh sách để quản lý biến thể, tồn kho và cập nhật giá.</span>
+              <span>Bấm xem chi tiết để quản lý thông tin, giá bán và tồn kho.</span>
             </div>
           )}
         </div>
@@ -1165,7 +1165,7 @@ export default function AdminProductsPage() {
                 {/* VARIANT HEADER */}
                 <div className="md:col-span-2 border-t border-outline-variant/10 my-1 pt-2">
                   <h4 className="font-bold text-emerald-700 uppercase tracking-wider text-[11px] mb-xs">
-                    Thiết lập biến thể đầu tiên
+                    Thiết lập giá bán và tồn kho
                   </h4>
                 </div>
 
@@ -1422,15 +1422,15 @@ export default function AdminProductsPage() {
                   <div className="flex items-center justify-between mb-xs">
                     <h4 className="font-bold text-on-surface flex items-center gap-xs">
                       <DollarSign className="w-4 h-4 text-primary" />
-                      Giá bán theo biến thể
+                      Giá bán sản phẩm
                     </h4>
-                    <span className="text-[11px] text-on-surface-variant">{variants.length} biến thể</span>
+                    <span className="text-[11px] text-on-surface-variant">{variants.length} mức giá</span>
                   </div>
                   {loadingVariants ? (
                     <div className="py-4 text-center text-on-surface-variant">Đang tải giá sản phẩm...</div>
                   ) : variants.length === 0 ? (
                     <div className="py-4 text-center border border-dashed rounded-lg text-on-surface-variant">
-                      Sản phẩm chưa có biến thể và giá bán.
+                      Sản phẩm chưa có thông tin giá bán.
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-xs max-h-52 overflow-y-auto">
@@ -1516,7 +1516,7 @@ export default function AdminProductsPage() {
             <div className="bg-white rounded-3xl max-w-sm w-full p-md md:p-lg text-left shadow-2xl">
             <h3 className="text-headline-sm font-bold text-on-surface tracking-tight mb-md pb-xs border-b border-outline-variant/10 flex items-center gap-xs">
               <Plus className="w-5 h-5 text-primary" />
-              <span>Thêm biến thể mới</span>
+              <span>Thêm lựa chọn sản phẩm</span>
             </h3>
 
             <form onSubmit={handleCreateVariant} className="space-y-sm font-sans text-label-sm">
@@ -1537,7 +1537,7 @@ export default function AdminProductsPage() {
 
               <div className="flex flex-col gap-0.5">
                 <label className="font-bold text-on-surface-variant">
-                  Tên biến thể <span className="text-red-500">*</span>
+                  Tên lựa chọn <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -1601,7 +1601,7 @@ export default function AdminProductsPage() {
                   disabled={savingVariant}
                   className="px-lg py-2 bg-primary hover:bg-[#1e40af] disabled:bg-primary/50 text-white font-bold rounded-lg cursor-pointer border-none"
                 >
-                  {savingVariant ? 'ĐANG TẠO...' : 'TẠO BIẾN THỂ'}
+                  {savingVariant ? 'ĐANG TẠO...' : 'TẠO LỰA CHỌN'}
                 </button>
               </div>
             </form>
@@ -1620,7 +1620,7 @@ export default function AdminProductsPage() {
             </h3>
 
             <div className="text-[11px] text-on-surface-variant space-y-0.5 mb-sm font-sans">
-              <div>Biến thể: <strong>{adjustingVariant.name}</strong></div>
+              <div>Lựa chọn: <strong>{adjustingVariant.name}</strong></div>
               <div>SKU hiện tại: <strong className="font-mono">{adjustingVariant.sku}</strong></div>
               <div>Số lượng hiện tại: <strong>{adjustingVariant.stockQuantity}</strong></div>
             </div>
@@ -1680,7 +1680,7 @@ export default function AdminProductsPage() {
             </h3>
 
             <div className="text-[11px] text-on-surface-variant space-y-0.5 mb-sm font-sans">
-              <div>Biến thể: <strong>{editingPriceVariant.name}</strong></div>
+              <div>Lựa chọn: <strong>{editingPriceVariant.name}</strong></div>
               <div>SKU hiện tại: <strong className="font-mono">{editingPriceVariant.sku}</strong></div>
               <div>Giá hiện tại: <strong className="text-emerald-600">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(editingPriceVariant.price)}</strong></div>
             </div>
