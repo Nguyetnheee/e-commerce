@@ -30,8 +30,12 @@ public class ProductResponse {
     private Long time;
     @Schema(description = "Trạng thái hiển thị")
     private Boolean isVisible;
+    @Schema(description = "ID danh mục")
+    private Long categoryId;
     @Schema(description = "Tên danh mục")
     private String categoryName;
+    @Schema(description = "ID thương hiệu")
+    private Long brandId;
     @Schema(description = "Tên thương hiệu")
     private String brandName;
     @Schema(description = "ID nhà cung cấp")

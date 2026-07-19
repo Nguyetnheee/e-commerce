@@ -100,8 +100,23 @@ export default function AdminProductsPage() {
   const [savingEditProduct, setSavingEditProduct] = useState(false);
 
   const handleOpenEditProduct = (p: any) => {
+    const matchedCategory = flattenCategories(categories).find((category) =>
+      p.categoryId
+        ? String(category.id) === String(p.categoryId)
+        : category.name?.trim().toLowerCase() === p.categoryName?.trim().toLowerCase()
+    );
     const parentCategory = categories.find((category) =>
-      collectCategoryIds(category).includes(String(p.categoryId))
+      matchedCategory && collectCategoryIds(category).includes(String(matchedCategory.id))
+    );
+    const matchedBrand = brands.find((brand) =>
+      p.brandId
+        ? String(brand.id) === String(p.brandId)
+        : brand.name?.trim().toLowerCase() === p.brandName?.trim().toLowerCase()
+    );
+    const matchedSupplier = suppliers.find((supplier) =>
+      p.supplierId
+        ? String(supplier.id) === String(p.supplierId)
+        : supplier.name?.trim().toLowerCase() === p.supplierName?.trim().toLowerCase()
     );
     setEditingProduct(p);
     setSelectedProduct(p);
@@ -109,9 +124,9 @@ export default function AdminProductsPage() {
     setEditProdImage(p.image || '');
     setEditProdDesc(p.description || '');
     setEditProdParentCat(parentCategory ? String(parentCategory.id) : '');
-    setEditProdCat(String(p.categoryId || ''));
-    setEditProdBrand(String(p.brandId || ''));
-    setEditProdSupplier(String(p.supplierId || ''));
+    setEditProdCat(matchedCategory ? String(matchedCategory.id) : '');
+    setEditProdBrand(matchedBrand ? String(matchedBrand.id) : '');
+    setEditProdSupplier(matchedSupplier ? String(matchedSupplier.id) : '');
     setErrors({});
   };
 
