@@ -194,8 +194,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Môi trường: Production</span>
           </div>
           
-          <div className="text-[11px] font-sans font-bold text-slate-400">
-            Hệ thống Quản lý WildStream E-Commerce • {new Date().toLocaleDateString('vi-VN')}
+          <div className="flex items-center gap-sm">
+            <div className="text-[11px] font-sans font-bold text-slate-400">
+              Hệ thống Quản lý WildStream E-Commerce • {new Date().toLocaleDateString('vi-VN')}
+            </div>
+            <div id="notification-bell-slot" className="flex items-center" />
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600" title={userEmail}>
+              <User className="w-4 h-4" />
+            </div>
           </div>
         </header>
 

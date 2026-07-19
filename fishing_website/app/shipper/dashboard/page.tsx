@@ -230,6 +230,7 @@ export default function ShipperDashboardPage() {
             <div className="text-label-sm font-bold">{userEmail}</div>
             <div className="text-[10px] text-amber-600 font-bold uppercase">Nhân viên giao hàng</div>
           </div>
+          <div id="notification-bell-slot" className="flex items-center" />
           <button onClick={logout} className="flex items-center gap-xs bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-lg font-bold text-label-sm">
             <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Đăng xuất</span>
           </button>

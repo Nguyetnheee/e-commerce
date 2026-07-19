@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, BellRing, X, CheckCircle2, AlertCircle, Info, Trash2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { notificationApi } from '../lib/api';
@@ -27,20 +28,47 @@ export default function ToastAndBell() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sessionRole, setSessionRole] = useState('');
+  const [bellSlot, setBellSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const syncSession = () => {
       const session = localStorage.getItem('user_session');
-      setIsLoggedIn(!!session);
-    }
+      try {
+        const parsed = session ? JSON.parse(session) : null;
+        setIsLoggedIn(Boolean(parsed?.token));
+        setSessionRole(String(parsed?.role || '').toLowerCase());
+        if (!parsed?.token) {
+          setNotifications([]);
+          setIsOpen(false);
+        }
+      } catch {
+        setIsLoggedIn(false);
+        setSessionRole('');
+        setNotifications([]);
+        setIsOpen(false);
+      }
+      setBellSlot(document.getElementById('notification-bell-slot'));
+    };
+
+    syncSession();
+    window.addEventListener('storage', syncSession);
+    window.addEventListener('authSessionExpired', syncSession);
+    return () => {
+      window.removeEventListener('storage', syncSession);
+      window.removeEventListener('authSessionExpired', syncSession);
+    };
   }, [pathname]);
 
-  const showBell = isLoggedIn && (
-    pathname.startsWith('/admin') || 
-    pathname.startsWith('/kho') || 
-    pathname.startsWith('/shipper') ||
-    pathname.startsWith('/profile')
-  );
+  const roleMatchesPage =
+    (sessionRole === 'admin' && pathname.startsWith('/admin')) ||
+    (sessionRole === 'kho' && pathname.startsWith('/kho')) ||
+    (sessionRole === 'shipper' && pathname.startsWith('/shipper')) ||
+    ((sessionRole === 'customer' || sessionRole === 'user') &&
+      !pathname.startsWith('/admin') &&
+      !pathname.startsWith('/kho') &&
+      !pathname.startsWith('/shipper'));
+  const showBell = isLoggedIn && roleMatchesPage && Boolean(bellSlot);
 
   // Overriding window.alert
   useEffect(() => {
@@ -85,7 +113,7 @@ export default function ToastAndBell() {
   }, []);
 
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !roleMatchesPage) return;
 
     const loadServerNotifications = async () => {
       try {
@@ -109,25 +137,10 @@ export default function ToastAndBell() {
     loadServerNotifications();
     const intervalId = window.setInterval(loadServerNotifications, 30000);
     return () => window.clearInterval(intervalId);
-  }, [isLoggedIn, pathname]);
-
-  // Persistent notifications history in localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('app_notifications');
-      if (saved) {
-        try {
-          setNotifications(JSON.parse(saved));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
-  }, []);
+  }, [isLoggedIn, roleMatchesPage, pathname]);
 
   const saveNotifications = (items: NotificationItem[]) => {
     setNotifications(items);
-    localStorage.setItem('app_notifications', JSON.stringify(items));
   };
 
   const translateAndSimplifyError = (msg: string): string => {
@@ -176,22 +189,6 @@ export default function ToastAndBell() {
     // Add to toasts
     setToasts(prev => [...prev, { id, message: translatedMessage, type }]);
 
-    // Add to notifications history
-    const timestamp = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    const newNotif: NotificationItem = {
-      id,
-      message: translatedMessage,
-      type,
-      timestamp,
-      read: false
-    };
-    
-    setNotifications(prev => {
-      const updated = [newNotif, ...prev];
-      localStorage.setItem('app_notifications', JSON.stringify(updated));
-      return updated;
-    });
-
     // Auto-remove toast after 4s
     setTimeout(() => {
       removeToast(id);
@@ -230,8 +227,8 @@ export default function ToastAndBell() {
   return (
     <>
       {/* FLOATING BELL BUTTON (Styled to look built-in to the right headers) */}
-      {showBell && (
-        <div className="fixed top-[13px] right-14 lg:right-6 z-[999]" ref={dropdownRef}>
+      {showBell && bellSlot && createPortal((
+        <div className="relative flex items-center z-[999]" ref={dropdownRef}>
           <button
             onClick={() => {
               setIsOpen(!isOpen);
@@ -313,7 +310,7 @@ export default function ToastAndBell() {
             </div>
           )}
         </div>
-      )}
+      ), bellSlot)}
 
       {/* TOASTS CONTAINER (Rectangular, modern style at top-right corner) */}
       <div className="fixed top-20 right-6 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none">

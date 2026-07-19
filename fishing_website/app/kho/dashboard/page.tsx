@@ -398,6 +398,8 @@ export default function KhoDashboardPage() {
           
           <div className="h-8 w-px bg-outline-variant/40 hidden sm:block" />
 
+          <div id="notification-bell-slot" className="flex items-center" />
+
           <button
             onClick={handleLogout}
             className="flex items-center gap-xs bg-error-container hover:bg-error/10 text-error text-label-sm font-bold px-3 py-1.5 rounded-lg border border-error/20 transition-all duration-200 cursor-pointer"

@@ -199,6 +199,8 @@ export default function Header() {
             </span>
           </a>
 
+          {isLoggedIn && <div id="notification-bell-slot" className="flex items-center" />}
+
           {/* User Icon with Dropdown Menu */}
           <div className="relative flex items-center" ref={userMenuRef}>
             <button 
