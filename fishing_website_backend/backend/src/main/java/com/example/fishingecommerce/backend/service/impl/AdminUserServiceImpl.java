@@ -81,9 +81,16 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Khong tim thay nguoi dung"));
 
         Set<Role> roles = resolveRoleName(request.getRoleName());
-        user.setRoles(roles);
+        if (user.getRoles() == null) {
+            user.setRoles(new HashSet<>(roles));
+        } else {
+            // Keep Hibernate's managed collection so UserRoles can be synchronized safely.
+            user.getRoles().clear();
+            user.getRoles().addAll(roles);
+        }
         user.setRole(UserRole.valueOf(resolvePrimaryRoleName(roles)));
-        return mapToAdminResponse(userRepository.save(user));
+        User saved = userRepository.saveAndFlush(user);
+        return mapToAdminResponse(saved);
     }
 
     @Override
