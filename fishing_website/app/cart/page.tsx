@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, ShieldCheck, Truck, Percent } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { cartApi, getAuthToken } from '../../lib/api';
 
 import { useRouter } from 'next/navigation';
@@ -22,10 +22,6 @@ interface CartItem {
 export default function CartPage() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [promoCode, setPromoCode] = useState('');
-  const [discount, setDiscount] = useState(0);
-  const [promoApplied, setPromoApplied] = useState(false);
-
   const handleProceedToCheckout = (e: React.MouseEvent) => {
     e.preventDefault();
     const token = getAuthToken();
@@ -126,26 +122,7 @@ export default function CartPage() {
     return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }, [cartItems]);
 
-  const shippingFee = useMemo(() => {
-    if (subtotal === 0) return 0;
-    return subtotal > 3000000 ? 0 : 50000; // Free shipping for orders above 3M
-  }, [subtotal]);
-
-  const total = useMemo(() => {
-    return subtotal + shippingFee - discount;
-  }, [subtotal, shippingFee, discount]);
-
-  // Apply promotional discount code
-  const handleApplyPromo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (promoCode.trim().toUpperCase() === 'WILDWATER') {
-      setDiscount(subtotal * 0.1); // 10% discount
-      setPromoApplied(true);
-      alert('Đã áp dụng mã giảm giá 10% thành công!');
-    } else {
-      alert('Mã giảm giá không hợp lệ. Hãy thử: WILDWATER');
-    }
-  };
+  const total = subtotal;
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
@@ -290,33 +267,6 @@ export default function CartPage() {
                 </div>
               ))}
 
-              {/* Promo Code Input Block */}
-              <div className="bg-white rounded-2xl shadow-ambient border border-outline-variant/10 p-md flex flex-col sm:flex-row items-center justify-between gap-sm text-left mt-sm">
-                <div className="flex items-center gap-xs">
-                  <Percent className="w-5 h-5 text-primary flex-shrink-0" />
-                  <div>
-                    <h4 className="text-label-md font-bold text-on-surface">Mã giảm giá (Coupon Code)</h4>
-                    <p className="text-[11px] text-on-surface-variant">Nhập mã giảm giá để hưởng ưu đãi đặc biệt lên đến 10%.</p>
-                  </div>
-                </div>
-                <form onSubmit={handleApplyPromo} className="flex gap-xs w-full sm:w-auto">
-                  <input
-                    type="text"
-                    placeholder="Mã: WILDWATER"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    disabled={promoApplied}
-                    className="bg-surface-container-low border border-outline-variant/40 rounded-md py-2 px-3 text-label-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none w-full sm:w-40"
-                  />
-                  <button
-                    type="submit"
-                    disabled={promoApplied}
-                    className="bg-primary hover:bg-[#1e40af] disabled:bg-surface-container disabled:text-outline-variant text-white text-label-sm font-bold rounded-md py-2 px-md shadow-sm transition-all duration-200 cursor-pointer flex-shrink-0"
-                  >
-                    {promoApplied ? 'ĐÃ ÁP DỤNG' : 'ÁP DỤNG'}
-                  </button>
-                </form>
-              </div>
             </div>
 
             {/* RIGHT SIDE: Summary Card (4 columns) */}
@@ -333,23 +283,6 @@ export default function CartPage() {
                     <span className="font-sans font-semibold text-on-surface">{formatPrice(subtotal)}</span>
                   </div>
 
-                  <div className="flex justify-between text-body-md text-on-surface-variant font-medium">
-                    <span>Phí vận chuyển</span>
-                    <span className="font-sans font-semibold text-on-surface">
-                      {shippingFee === 0 ? (
-                        <span className="text-secondary font-bold">Miễn phí</span>
-                      ) : (
-                        formatPrice(shippingFee)
-                      )}
-                    </span>
-                  </div>
-
-                  {discount > 0 && (
-                    <div className="flex justify-between text-body-md text-secondary font-medium">
-                      <span>Giảm giá (10%)</span>
-                      <span className="font-sans font-semibold">-{formatPrice(discount)}</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Total Payment Price */}
@@ -381,16 +314,6 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Secondary Shipping info block */}
-              <div className="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-md text-left flex items-start gap-xs">
-                <Truck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-label-sm font-bold text-on-surface">Chính sách vận chuyển</h4>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                    Giao hàng nhanh toàn quốc từ 2-4 ngày làm việc. Miễn phí vận chuyển cho các đơn hàng có giá trị trên 3.000.000 đ.
-                  </p>
-                </div>
-              </div>
             </div>
 
           </div>

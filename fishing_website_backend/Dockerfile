@@ -6,7 +6,7 @@ WORKDIR /app
 COPY backend/pom.xml ./pom.xml
 COPY backend/src ./src
 
-RUN mvn clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 mvn clean package -DskipTests
 
 # --- Stage 2: Run the application ---
 FROM eclipse-temurin:17-jre

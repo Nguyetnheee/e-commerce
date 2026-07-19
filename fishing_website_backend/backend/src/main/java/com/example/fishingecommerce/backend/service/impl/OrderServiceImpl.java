@@ -86,16 +86,10 @@ public class OrderServiceImpl implements OrderService {
                     .ifPresent(cartItemRepository::delete);
         }
 
-        Coupon coupon = resolveCoupon(request.getCouponCode(), subtotal);
-        java.math.BigDecimal discountAmount = calculateDiscountAmount(coupon, subtotal);
-        java.math.BigDecimal totalAmount = subtotal.subtract(discountAmount);
-        if (totalAmount.compareTo(java.math.BigDecimal.ZERO) < 0) {
-            totalAmount = java.math.BigDecimal.ZERO;
-        }
-
-        order.setCouponCode(coupon != null ? coupon.getCode() : null);
-        order.setDiscountAmount(discountAmount);
-        order.setTotalAmount(totalAmount);
+        // Checkout charges only the actual product prices.
+        order.setCouponCode(null);
+        order.setDiscountAmount(java.math.BigDecimal.ZERO);
+        order.setTotalAmount(subtotal);
         order.setOrderItems(orderItems);
 
         Order persisted = orderRepository.save(order);

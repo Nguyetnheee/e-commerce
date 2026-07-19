@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { CreditCard, Truck, ShieldCheck, ArrowRight, User, Phone, MapPin, Building } from 'lucide-react';
-import { cartApi, orderApi, couponApi, getAuthToken } from '../../lib/api';
+import { cartApi, orderApi, getAuthToken } from '../../lib/api';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -16,13 +16,6 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bank'>('cod');
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState<any[]>([]);
-
-  const [shippingFee, setShippingFee] = useState(0);
-  const [calculatingFee, setCalculatingFee] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [couponMessage, setCouponMessage] = useState<{ text: string; isError: boolean } | null>(null);
-  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   // Load cart items on mount & check authentication
   useEffect(() => {
@@ -50,71 +43,7 @@ export default function CheckoutPage() {
     return sum + price * qty;
   }, 0);
 
-  // Fetch dynamic shipping fee when city/cart changes
-  useEffect(() => {
-    if (!city.trim() || cartItems.length === 0) {
-      setShippingFee(0);
-      return;
-    }
-
-    const payloadItems = cartItems.map((item) => ({
-      variantId: item.variantId || Number(item.id),
-      quantity: item.quantity,
-    }));
-
-    const delayDebounceFn = setTimeout(() => {
-      setCalculatingFee(true);
-      orderApi.getShippingFee({ province: city.trim(), items: payloadItems })
-        .then((res) => {
-          if (res && typeof res.shippingFee === 'number') {
-            setShippingFee(res.shippingFee);
-          }
-        })
-        .catch((err) => {
-          console.error('Error fetching shipping fee:', err);
-          // Fallback to client logic
-          setShippingFee(subtotal > 3000000 ? 0 : 50000);
-        })
-        .finally(() => {
-          setCalculatingFee(false);
-        });
-    }, 500);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [city, cartItems, subtotal]);
-
-  const handleApplyCoupon = () => {
-    if (!couponCode.trim()) return;
-    setApplyingCoupon(true);
-    setCouponMessage(null);
-
-    couponApi.validateCoupon(couponCode.trim(), subtotal)
-      .then((res) => {
-        if (res && res.valid) {
-          setDiscountAmount(res.discountAmount || 0);
-          setCouponMessage({ text: res.message || 'Áp dụng mã thành công!', isError: false });
-        } else {
-          setDiscountAmount(0);
-          setCouponMessage({ text: res.message || 'Mã giảm giá không hợp lệ!', isError: true });
-        }
-      })
-      .catch((err) => {
-        console.error('Error validating coupon:', err);
-        if (couponCode.trim().toUpperCase() === 'WILD15') {
-          const discount = Math.round(subtotal * 0.15);
-          setDiscountAmount(discount);
-          setCouponMessage({ text: 'Áp dụng mã WILD15 thành công (Giảm 15% - offline fallback)', isError: false });
-        } else {
-          setDiscountAmount(0);
-          setCouponMessage({ text: 'Lỗi kiểm tra mã giảm giá. Vui lòng thử lại!', isError: true });
-        }
-      })
-      .finally(() => {
-        setApplyingCoupon(false);
-      });
-  };
-
-  const total = Math.max(0, subtotal + shippingFee - discountAmount);
+  const total = subtotal;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,7 +69,6 @@ export default function CheckoutPage() {
       recipientPhone: phone,
       shippingAddress: `${address}, ${city || 'Hà Nội'}`,
       paymentMethod: paymentMethod === 'cod' ? 'COD' : 'BANK_TRANSFER',
-      couponCode: couponCode.trim() || undefined,
       items: orderItemsPayload,
     };
 
@@ -383,55 +311,12 @@ export default function CheckoutPage() {
                 })}
               </div>
 
-              {/* Coupon code input field */}
-              <div className="py-sm border-b border-outline-variant/10 mb-sm">
-                <label className="text-[11px] font-bold text-on-surface uppercase tracking-wider block mb-xs">
-                  Mã giảm giá
-                </label>
-                <div className="flex gap-xs">
-                  <input
-                    type="text"
-                    placeholder="Nhập mã (Ví dụ: WILD15)"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    className="bg-[#f8f9fa] border border-[#e5e7eb] rounded-md py-1.5 px-3 text-label-sm text-on-surface placeholder-on-surface-variant/40 focus:outline-none focus:border-primary flex-grow"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    disabled={applyingCoupon || !couponCode}
-                    className="bg-primary hover:bg-[#1e40af] text-white text-[11px] font-bold rounded-md px-md transition-all active:scale-98"
-                  >
-                    {applyingCoupon ? '...' : 'ÁP DỤNG'}
-                  </button>
-                </div>
-                {couponMessage && (
-                  <span className={`text-[11px] block mt-xs font-medium ${couponMessage.isError ? 'text-red-500' : 'text-emerald-600'}`}>
-                    {couponMessage.text}
-                  </span>
-                )}
-              </div>
-
               {/* Calculation Summary details */}
               <div className="space-y-sm py-xs">
                 <div className="flex justify-between text-label-sm text-on-surface-variant font-medium">
                   <span>Tạm tính</span>
                   <span className="font-sans font-bold text-on-surface">{formatPrice(subtotal)}</span>
                 </div>
-
-                <div className="flex justify-between text-label-sm text-on-surface-variant font-medium">
-                  <span>Phí giao hàng</span>
-                  <span className="font-sans font-bold text-secondary">
-                    {calculatingFee ? 'Đang tính...' : shippingFee === 0 ? 'Miễn phí' : formatPrice(shippingFee)}
-                  </span>
-                </div>
-
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-label-sm text-emerald-600 font-medium">
-                    <span>Giảm giá</span>
-                    <span className="font-sans font-bold">-{formatPrice(discountAmount)}</span>
-                  </div>
-                )}
 
                 <div className="flex justify-between items-end border-t border-outline-variant/10 pt-sm mt-xs">
                   <span className="text-label-md font-bold text-on-surface">Tổng cộng</span>
