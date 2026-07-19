@@ -75,6 +75,7 @@ public class OTPService {
     }
 
     private void saveOtp(User user, String otp) {
+        otpRepository.findOTPByEmail(user.getEmail()).ifPresent(otpRepository::delete);
         OTP otpCode = new OTP();
         otpCode.setCode(otp);
         otpCode.setEmail(user.getEmail());
@@ -89,16 +90,27 @@ public class OTPService {
         currentWindow = Instant.now().getEpochSecond() / 180;
         boolean expired = (currentWindow - otp.getTime()) > 1;
         if (otp.getCode().equals(request.getOtp()) && !expired) {
-            otpRepository.delete(otp);
             return OTPVerificationResponse.builder()
                     .status("Thanh Cong")
                     .build();
-        } else {
-            otpRepository.delete(otp);
         }
-        return OTPVerificationResponse.builder()
-                .status("Ma OTP da het han hoac khong dung")
-                .build();
+        otpRepository.delete(otp);
+        throw new AppException(HttpStatus.BAD_REQUEST, "Ma OTP da het han hoac khong dung");
+    }
+
+    public void verifyAndConsumeForPasswordReset(String email, String code) {
+        OTP otp = otpRepository.findOTPByEmail(email).orElseThrow(
+                () -> new AppException(HttpStatus.BAD_REQUEST, "Ma OTP khong ton tai hoac da duoc su dung")
+        );
+        long nowWindow = Instant.now().getEpochSecond() / 180;
+        boolean expired = (nowWindow - otp.getTime()) > 1;
+
+        if (!otp.getCode().equals(code) || expired) {
+            otpRepository.delete(otp);
+            throw new AppException(HttpStatus.BAD_REQUEST, "Ma OTP da het han hoac khong dung");
+        }
+
+        otpRepository.delete(otp);
     }
 
     private String generateOtp() {

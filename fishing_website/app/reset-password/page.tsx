@@ -13,14 +13,19 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
 
   // Read email from search params on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const emailParam = params.get('email');
+      const otpParam = params.get('otp');
       if (emailParam) {
         setEmail(emailParam);
+      }
+      if (otpParam) {
+        setOtp(otpParam);
       }
     }
   }, []);
@@ -57,7 +62,7 @@ export default function ResetPasswordPage() {
       alert('Mật khẩu của bạn quá yếu! Vui lòng chọn mật khẩu mạnh hơn.');
       return;
     }
-    if (!email) {
+    if (!email || !otp) {
       alert('Không tìm thấy thông tin email hợp lệ. Vui lòng quay lại bước quên mật khẩu!');
       return;
     }
@@ -65,7 +70,8 @@ export default function ResetPasswordPage() {
     setLoading(true);
     authApi.changePassword({
       email,
-      newPassword: password
+      newPassword: password,
+      otp
     })
       .then(() => {
         setLoading(false);

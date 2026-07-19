@@ -18,6 +18,7 @@ import com.example.fishingecommerce.backend.exceptions.AppException;
 import com.example.fishingecommerce.backend.repository.RoleRepository;
 import com.example.fishingecommerce.backend.repository.UserRepository;
 import com.example.fishingecommerce.backend.service.AuthService;
+import com.example.fishingecommerce.backend.service.OTPService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -40,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final OTPService otpService;
 
     @Value("${admin.staff.secret-key:}")
     private String adminStaffSecretKey;
@@ -124,6 +126,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepo.findUserByEmail(request.getEmail()).orElseThrow(()
                 -> new AppException(HttpStatus.BAD_REQUEST , "Email khong ton tai"));
         ensureActive(user);
+        otpService.verifyAndConsumeForPasswordReset(request.getEmail(), request.getOtp());
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepo.save(user);
         return NewPasswordResponse.builder().newPassword(request.getNewPassword()).build();
