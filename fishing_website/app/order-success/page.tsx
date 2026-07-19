@@ -3,7 +3,18 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { CheckCircle2, Package, ShieldCheck, MapPin, CreditCard, ChevronRight, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Package, MapPin } from 'lucide-react';
+
+interface OrderItemData {
+  id?: number;
+  productId?: number;
+  productName: string;
+  productImage?: string | null;
+  variantId?: number;
+  variantName?: string | null;
+  quantity: number;
+  soldPrice: number;
+}
 
 interface OrderData {
   fullname: string;
@@ -13,28 +24,25 @@ interface OrderData {
   total: number;
   orderId: string;
   date: string;
+  paymentStatus?: string;
+  trackingNumber?: string | null;
+  status?: string;
+  items: OrderItemData[];
 }
 
 export default function OrderSuccessPage() {
   const [order, setOrder] = useState<OrderData | null>(null);
 
-  // Retrieve order details from sessionStorage or fallback to mock details
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedOrder = sessionStorage.getItem('lastOrder');
       if (savedOrder) {
-        setOrder(JSON.parse(savedOrder));
-      } else {
-        // Fallback mockup order to guarantee visual excellence on direct visit
-        setOrder({
-          fullname: 'Nguyễn Văn A',
-          phone: '0912345678',
-          address: 'Số 10, ngõ 123 đường Xuân Thủy, Cầu Giấy, Hà Nội',
-          paymentMethod: 'Thanh toán khi nhận hàng (COD)',
-          total: 4950000,
-          orderId: 'WSG-385921',
-          date: new Date().toLocaleDateString('vi-VN'),
-        });
+        try {
+          const parsed = JSON.parse(savedOrder);
+          setOrder({ ...parsed, items: Array.isArray(parsed.items) ? parsed.items : [] });
+        } catch {
+          setOrder(null);
+        }
       }
     }
   }, []);
@@ -43,7 +51,32 @@ export default function OrderSuccessPage() {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
   };
 
-  if (!order) return null;
+  const displayOrderCode = order?.orderId
+    ? (String(order.orderId).startsWith('WSG-') ? String(order.orderId) : `WSG-${order.orderId}`)
+    : '';
+
+  const paymentMethodLabel = order?.paymentMethod === 'COD'
+    ? 'Thanh toán khi nhận hàng (COD)'
+    : order?.paymentMethod === 'PAYOS'
+      ? 'Chuyển khoản qua PayOS'
+      : order?.paymentMethod || 'Chưa xác định';
+
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fa] text-on-surface flex flex-col font-sans">
+        <Header />
+        <main className="flex-grow flex items-center justify-center px-margin-mobile">
+          <div className="max-w-lg bg-white rounded-2xl shadow-ambient p-lg text-center">
+            <Package className="w-12 h-12 text-on-surface-variant mx-auto mb-sm" />
+            <h1 className="text-headline-md font-bold">Không tìm thấy đơn hàng vừa đặt</h1>
+            <p className="text-on-surface-variant mt-xs">Vui lòng mở đơn hàng từ trang theo dõi đơn hàng của bạn.</p>
+            <a href="/order-tracking" className="inline-block mt-md bg-primary text-white font-bold px-md py-3 rounded-xl">Xem đơn hàng của tôi</a>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-on-surface flex flex-col font-sans">
@@ -72,7 +105,7 @@ export default function OrderSuccessPage() {
         <section className="mb-md">
           <div className="bg-[#a4f1b2] rounded-xl p-sm text-center shadow-sm border border-[#24703e]/10">
             <p className="text-label-md font-bold text-[#24703e] leading-snug">
-              Mã đơn hàng của bạn là <span className="font-extrabold text-[#00288e]">{order.orderId}</span>. Đơn hàng đang được hệ thống xác nhận tự động.
+              Mã đơn hàng của bạn là <span className="font-extrabold text-[#00288e]">{displayOrderCode}</span>. Đơn hàng đang được hệ thống xác nhận tự động.
             </p>
           </div>
         </section>
@@ -90,15 +123,15 @@ export default function OrderSuccessPage() {
             <div className="space-y-sm text-body-md">
               <div className="flex justify-between">
                 <span className="text-on-surface-variant font-medium">Mã đơn hàng:</span>
-                <span className="font-bold text-on-surface">{order.orderId}</span>
+                <span className="font-bold text-on-surface">{displayOrderCode}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-on-surface-variant font-medium">Ngày đặt:</span>
-                <span className="font-bold text-on-surface">{order.date}</span>
+                <span className="font-bold text-on-surface">{new Date(order.date).toLocaleDateString('vi-VN')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-on-surface-variant font-medium">Thanh toán:</span>
-                <span className="font-semibold text-on-surface text-right">{order.paymentMethod}</span>
+                <span className="font-semibold text-on-surface text-right">{paymentMethodLabel}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-on-surface-variant font-medium">Họ và tên:</span>
@@ -124,16 +157,16 @@ export default function OrderSuccessPage() {
                 <span className="font-bold text-on-surface leading-tight">{order.address}</span>
               </div>
               <div className="flex justify-between pt-1">
-                <span className="text-on-surface-variant font-medium">Đơn vị vận chuyển:</span>
-                <span className="font-bold text-on-surface">Giao Hàng Nhanh (GHN)</span>
+                <span className="text-on-surface-variant font-medium">Trạng thái xử lý:</span>
+                <span className="font-bold text-on-surface">{order.status === 'PENDING' ? 'Chờ xác nhận' : order.status || 'Chờ xác nhận'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-on-surface-variant font-medium">Mã vận đơn:</span>
-                <span className="font-mono font-bold text-primary">GHN-83921094</span>
+                <span className="font-mono font-bold text-primary">{order.trackingNumber || 'Sẽ có sau khi bàn giao vận chuyển'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-on-surface-variant font-medium">Thời gian nhận dự kiến:</span>
-                <span className="font-bold text-secondary">Từ 2 - 3 ngày làm việc</span>
+                <span className="font-bold text-secondary">Cập nhật sau khi đơn được duyệt</span>
               </div>
             </div>
           </div>
@@ -147,35 +180,37 @@ export default function OrderSuccessPage() {
               Sản phẩm đã đặt
             </h3>
             
-            <div className="divide-y divide-outline-variant/10 space-y-sm">
-              {/* Product Row 1 */}
-              <div className="flex items-center gap-md py-xs">
-                <div className="w-14 h-14 bg-surface-container rounded-xl overflow-hidden flex-shrink-0 border border-outline-variant/10">
-                  <img src="/images/product-tent.png" alt="Lều Horizon" className="w-full h-full object-cover" />
+            <div className="divide-y divide-outline-variant/10">
+              {order.items.map((item, index) => (
+                <div key={item.id || `${item.variantId}-${index}`} className="flex items-center gap-md py-sm first:pt-xs">
+                  <div className="w-14 h-14 bg-surface-container rounded-xl overflow-hidden flex-shrink-0 border border-outline-variant/10">
+                    {item.productImage ? (
+                      <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Package className="w-6 h-6 text-on-surface-variant" /></div>
+                    )}
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <h4 className="text-body-md font-bold text-on-surface line-clamp-1">{item.productName}</h4>
+                    <p className="text-[11px] text-on-surface-variant">
+                      {item.variantName ? `${item.variantName} | ` : ''}Số lượng: {item.quantity}
+                    </p>
+                  </div>
+                  <span className="text-body-md font-bold text-on-surface font-sans whitespace-nowrap">
+                    {formatPrice(Number(item.soldPrice) * Number(item.quantity))}
+                  </span>
                 </div>
-                <div className="flex-grow">
-                  <h4 className="text-body-md font-bold text-on-surface line-clamp-1">Lều cắm trại 4 người Horizon</h4>
-                  <p className="text-[11px] text-on-surface-variant">Màu sắc: Forest Green | Số lượng: 1</p>
-                </div>
-                <span className="text-body-md font-bold text-on-surface font-sans">3.450.000 ₫</span>
-              </div>
-
-              {/* Product Row 2 */}
-              <div className="flex items-center gap-md py-xs pt-sm">
-                <div className="w-14 h-14 bg-surface-container rounded-xl overflow-hidden flex-shrink-0 border border-outline-variant/10">
-                  <img src="/images/product-chair-terrain.png" alt="Ghế dã ngoại" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-grow">
-                  <h4 className="text-body-md font-bold text-on-surface line-clamp-1">Ghế dã ngoại xếp gọn Naturehike</h4>
-                  <p className="text-[11px] text-on-surface-variant">Màu sắc: Warm Orange | Số lượng: 2</p>
-                </div>
-                <span className="text-body-md font-bold text-on-surface font-sans">1.500.000 ₫</span>
-              </div>
+              ))}
+              {order.items.length === 0 && (
+                <p className="py-md text-center text-on-surface-variant">Đơn hàng không có sản phẩm.</p>
+              )}
             </div>
 
             {/* Subtotal row */}
             <div className="flex justify-between items-center border-t border-outline-variant/10 pt-sm mt-sm">
-              <span className="text-label-md font-bold text-on-surface">Tổng số tiền đã thanh toán</span>
+              <span className="text-label-md font-bold text-on-surface">
+                {order.paymentMethod === 'COD' ? 'Tổng tiền cần thanh toán khi nhận hàng' : 'Tổng số tiền đơn hàng'}
+              </span>
               <span className="text-headline-md font-extrabold text-primary font-sans">
                 {formatPrice(order.total)}
               </span>

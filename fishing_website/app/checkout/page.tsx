@@ -106,21 +106,18 @@ export default function CheckoutPage() {
         // Save order data in sessionStorage for success page
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('lastOrder', JSON.stringify({
-            fullname,
-            phone,
-            address: orderPayload.shippingAddress,
-            paymentMethod: paymentMethod === 'cod' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản Ngân hàng',
-            total,
-            couponCode: couponCode || undefined,
+            fullname: data.recipientName || fullname,
+            phone: data.recipientPhone || phone,
+            address: data.shippingAddress || orderPayload.shippingAddress,
+            paymentMethod: data.paymentMethod || orderPayload.paymentMethod,
+            paymentStatus: data.paymentStatus,
+            total: Number(data.totalAmount ?? total),
+            couponCode: data.couponCode || couponCode || undefined,
             orderId: data.orderCode || 'WSG-' + data.id,
-            date: new Date().toLocaleDateString('vi-VN'),
-            items: cartItems.map((item) => ({
-              productName: item.productName || item.title || 'Sản phẩm dã ngoại',
-              productImage: item.image || item.imageUrl || '/images/product-tent.png',
-              variantName: item.variantName || item.variant || 'Mặc định',
-              quantity: item.quantity,
-              soldPrice: item.price || item.soldPrice || 0
-            }))
+            date: data.createdAt || new Date().toISOString(),
+            trackingNumber: data.trackingNumber || null,
+            status: data.status,
+            items: Array.isArray(data.items) ? data.items : []
           }));
           sessionStorage.removeItem('checkoutCoupon');
         }
