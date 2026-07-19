@@ -1,5 +1,6 @@
 package com.example.fishingecommerce.backend.config;
 
+import com.example.fishingecommerce.backend.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +22,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -47,6 +49,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String userId = jwtService.extractSubject(token);
+        Long parsedUserId;
+        try {
+            parsedUserId = Long.valueOf(userId);
+        } catch (NumberFormatException exception) {
+            rejectInvalidSession(response);
+            return;
+        }
+
+        if (!userRepository.existsById(parsedUserId)) {
+            rejectInvalidSession(response);
+            return;
+        }
+
         List<String> roles = jwtService.extractRoles(token);
 
         var authorities = roles.stream()
@@ -59,6 +74,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);
+    }
+
+    private void rejectInvalidSession(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/json");
+        response.getWriter().write("{\"error\":\"Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.\"}");
     }
 
     private boolean isExcludedPath(String path, String method) {

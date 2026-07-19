@@ -59,6 +59,12 @@ async function fetchAPI<T = any>(path: string, options: RequestInit = {}): Promi
   }
 
   if (!response.ok) {
+    if (response.status === 401 && token && typeof window !== 'undefined') {
+      localStorage.removeItem('user_session');
+      window.dispatchEvent(new Event('authSessionExpired'));
+      throw new Error('Phiên đăng nhập đã hết hạn hoặc tài khoản không còn tồn tại. Vui lòng đăng nhập lại.');
+    }
+
     const errorMsg = data.error || data.message || `API error (status: ${response.status})`;
     throw new Error(errorMsg);
   }

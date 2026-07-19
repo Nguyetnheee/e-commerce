@@ -73,10 +73,12 @@ export default function Header() {
     };
     window.addEventListener('storage', handleCartUpdate);
     window.addEventListener('cartUpdated', handleCartUpdate);
+    window.addEventListener('authSessionExpired', handleCartUpdate);
 
     return () => {
       window.removeEventListener('storage', handleCartUpdate);
       window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener('authSessionExpired', handleCartUpdate);
     };
   }, []);
 
