@@ -22,6 +22,14 @@ import { adminApi, productApi } from '../../../lib/api';
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dziemd19e';
 const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'e-commerce';
 
+const flattenCategories = (nodes: any[]): any[] =>
+  nodes.flatMap((node) => [node, ...flattenCategories(node.children || [])]);
+
+const collectCategoryIds = (category: any): string[] => [
+  String(category.id),
+  ...(category.children || []).flatMap(collectCategoryIds),
+];
+
 export default function AdminProductsPage() {
   // Products states
   const [products, setProducts] = useState<any[]>([]);
@@ -33,6 +41,7 @@ export default function AdminProductsPage() {
   // Filters
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedProductType, setSelectedProductType] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
 
   // Selected Product for Variants Detail
@@ -520,13 +529,27 @@ export default function AdminProductsPage() {
     }
   };
 
-  // Filter products on client
+  const allCategories = flattenCategories(categories);
+  const selectedCategoryNode = categories.find(
+    (category) => String(category.id) === selectedCategory
+  );
+  const productTypes = selectedCategory
+    ? flattenCategories(selectedCategoryNode?.children || [])
+    : categories.flatMap((category) => flattenCategories(category.children || []));
+  const selectedCategoryIds = selectedCategoryNode
+    ? collectCategoryIds(selectedCategoryNode)
+    : [];
+
+  // Filter products on client using the real category hierarchy returned by the API.
   const filteredProducts = products.filter(p => {
     const matchesKeyword = p.name.toLowerCase().includes(searchKeyword.toLowerCase()) || 
                            String(p.id).includes(searchKeyword);
-    const matchesCat = selectedCategory ? String(p.categoryId) === selectedCategory : true;
+    const matchesCat = selectedCategory ? selectedCategoryIds.includes(String(p.categoryId)) : true;
+    const matchesProductType = selectedProductType
+      ? String(p.categoryId) === selectedProductType
+      : true;
     const matchesBrand = selectedBrand ? String(p.brandId) === selectedBrand : true;
-    return matchesKeyword && matchesCat && matchesBrand;
+    return matchesKeyword && matchesCat && matchesProductType && matchesBrand;
   });
 
   return (
@@ -575,12 +598,27 @@ export default function AdminProductsPage() {
           {/* Category Filter */}
           <select
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setSelectedProductType('');
+            }}
             className="bg-[#f8f9fa] border border-[#e5e7eb] rounded-lg py-1.5 px-3 text-label-sm focus:outline-none focus:border-primary cursor-pointer font-sans"
           >
             <option value="">Tất cả danh mục</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          {/* Product type (child category) Filter */}
+          <select
+            value={selectedProductType}
+            onChange={(e) => setSelectedProductType(e.target.value)}
+            className="bg-[#f8f9fa] border border-[#e5e7eb] rounded-lg py-1.5 px-3 text-label-sm focus:outline-none focus:border-primary cursor-pointer font-sans"
+          >
+            <option value="">Tất cả loại sản phẩm</option>
+            {productTypes.map((type) => (
+              <option key={type.id} value={type.id}>{type.name}</option>
             ))}
           </select>
 
@@ -654,10 +692,10 @@ export default function AdminProductsPage() {
                           <div className="font-bold text-on-surface line-clamp-1">{p.name}</div>
                           <div className="flex gap-xs mt-1">
                             <span className="bg-slate-100 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded">
-                              {categories.find(c => c.id === p.categoryId)?.name || 'Danh mục khác'}
+                              {allCategories.find(c => String(c.id) === String(p.categoryId))?.name || p.categoryName || 'Danh mục khác'}
                             </span>
                             <span className="bg-slate-100 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded">
-                              {brands.find(b => b.id === p.brandId)?.name || 'Hãng khác'}
+                              {brands.find(b => String(b.id) === String(p.brandId))?.name || p.brandName || 'Hãng khác'}
                             </span>
                           </div>
                         </td>
