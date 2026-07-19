@@ -1,11 +1,11 @@
 const mysql = require('mysql2');
 
 const config = {
-  host: 'reseau.proxy.rlwy.net',
-  port: 42598,
-  user: 'root',
-  password: 'jfLzvkLQWsSioUFKRnycCZmssWOynecD',
-  database: 'railway'
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_DATABASE || 'fishing_ecommerce'
 };
 
 const connection = mysql.createConnection(config);
