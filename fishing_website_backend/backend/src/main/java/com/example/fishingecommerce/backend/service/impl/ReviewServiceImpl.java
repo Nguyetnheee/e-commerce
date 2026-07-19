@@ -7,6 +7,7 @@ import com.example.fishingecommerce.backend.entity.OrderItem;
 import com.example.fishingecommerce.backend.entity.Product;
 import com.example.fishingecommerce.backend.entity.Review;
 import com.example.fishingecommerce.backend.entity.User;
+import com.example.fishingecommerce.backend.enums.OrderStatus;
 import com.example.fishingecommerce.backend.exceptions.AppException;
 import com.example.fishingecommerce.backend.exceptions.ResourceNotFoundException;
 import com.example.fishingecommerce.backend.repository.OrderRepository;
@@ -22,6 +23,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +56,10 @@ public class ReviewServiceImpl implements ReviewService {
         if (!order.getUser().getId().equals(userId)) {
             throw new AppException(HttpStatus.BAD_REQUEST, "Đơn hàng không thuộc về bạn");
         }
+        if (order.getStatus() != OrderStatus.COMPLETED) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Bạn chỉ có thể đánh giá sau khi xác nhận đã nhận hàng");
+        }
 
         boolean hasProduct = false;
         if (order.getOrderItems() != null) {
@@ -85,6 +91,47 @@ public class ReviewServiceImpl implements ReviewService {
         return mapToResponse(review);
     }
 
+    @Override
+    @Transactional
+    public ReviewResponse updateReview(Long userId, Long reviewId, ReviewRequest request) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đánh giá"));
+        if (!review.getUser().getId().equals(userId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "Bạn chỉ có thể sửa đánh giá của chính mình");
+        }
+        if (!review.getOrder().getId().equals(request.getOrderId())
+                || !review.getProduct().getId().equals(request.getProductId())) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Không thể thay đổi đơn hàng hoặc sản phẩm của đánh giá");
+        }
+        review.setRating(request.getRating());
+        review.setText(request.getText());
+        review.setImages(request.getImages());
+        return mapToResponse(reviewRepository.saveAndFlush(review));
+    }
+
+    @Override
+    @Transactional
+    public void deleteReview(Long userId, Long reviewId) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đánh giá"));
+        if (!review.getUser().getId().equals(userId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "Bạn chỉ có thể xóa đánh giá của chính mình");
+        }
+        reviewRepository.delete(review);
+    }
+
+    @Override
+    public Page<ReviewResponse> getAllReviews(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return reviewRepository.findAll(pageable).map(this::mapToResponse);
+    }
+
+    @Override
+    public List<ReviewResponse> getMyReviews(Long userId) {
+        return reviewRepository.findByUserId(userId).stream().map(this::mapToResponse).toList();
+    }
+
     private ReviewResponse mapToResponse(Review review) {
         return ReviewResponse.builder()
                 .id(review.getId())
@@ -96,6 +143,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .text(review.getText())
                 .images(review.getImages())
                 .createdAt(review.getCreatedAt())
+                .updatedAt(review.getUpdatedAt())
                 .build();
     }
 }

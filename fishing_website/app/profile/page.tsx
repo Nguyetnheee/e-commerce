@@ -26,10 +26,11 @@ import {
   ChevronRight,
   Send
 } from 'lucide-react';
-import { userApi, orderApi, getAuthToken } from '../../lib/api';
+import { userApi, orderApi, reviewApi, getAuthToken } from '../../lib/api';
 
 interface OrderItem {
   id: string;
+  productId: number;
   name: string;
   price: string;
   quantity: number;
@@ -38,9 +39,10 @@ interface OrderItem {
 
 interface Order {
   id: string;
+  rawStatus: string;
   date: string;
   total: string;
-  status: 'Chờ xử lý' | 'Đang giao' | 'Đã giao' | 'Đã hủy';
+  status: string;
   items: OrderItem[];
 }
 
@@ -97,11 +99,51 @@ export default function ProfileDashboard() {
 
   // Mock Order History (defaults, will be overwritten if API returns data)
   const [orders, setOrders] = useState<Order[]>([]);
+  const [deliveryActionOrder, setDeliveryActionOrder] = useState<Order | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reviewItem, setReviewItem] = useState<{ order: Order; item: OrderItem } | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [submittingAction, setSubmittingAction] = useState(false);
 
   // Toast Helper
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const orderStatusLabel = (status: string) => ({
+    PENDING: 'Chờ xử lý',
+    PACKING: 'Đang đóng gói',
+    SHIPPING: 'Đang giao',
+    DELIVERED: 'Shipper đã giao - chờ bạn xác nhận',
+    DELIVERY_DISPUTED: 'Đang khiếu nại chưa nhận hàng',
+    DELIVERY_FAILED: 'Giao hàng không thành công',
+    RETURNED: 'Đã trả về kho',
+    COMPLETED: 'Hoàn thành',
+    CANCELLED: 'Đã hủy',
+  }[status] || status);
+
+  const reloadOrders = async () => {
+    const data = await orderApi.getMyOrders();
+    if (!Array.isArray(data)) return;
+    setOrders(data.map((ord: any) => ({
+      id: String(ord.id),
+      rawStatus: ord.status,
+      date: ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('vi-VN') : '',
+      total: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+        .format(Number(ord.totalAmount || 0)),
+      status: orderStatusLabel(ord.status),
+      items: (ord.items || []).map((it: any) => ({
+        id: String(it.id),
+        productId: Number(it.productId),
+        name: it.productName || 'Sản phẩm',
+        price: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+          .format(Number(it.soldPrice || 0)),
+        quantity: it.quantity || 1,
+        imageUrl: it.productImage || '/images/product-rod.png',
+      })),
+    })));
   };
 
   // Load data from APIs on mount
@@ -129,28 +171,7 @@ export default function ProfileDashboard() {
       });
 
     // Fetch user orders
-    orderApi.getMyOrders()
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const mappedOrders = data.map((ord: any) => {
-            const total = ord.items ? ord.items.reduce((sum: number, it: any) => sum + (it.soldPrice * it.quantity), 0) : 0;
-            return {
-              id: ord.id ? ord.id.toString() : 'WS-' + Math.floor(10000 + Math.random() * 90000),
-              date: ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN'),
-              total: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(total),
-              status: (ord.status === 'DELIVERED' ? 'Đã giao' : ord.status === 'CANCELLED' ? 'Đã hủy' : ord.status === 'PENDING' ? 'Chờ xử lý' : 'Đang giao') as 'Chờ xử lý' | 'Đang giao' | 'Đã giao' | 'Đã hủy',
-              items: (ord.items || []).map((it: any) => ({
-                id: it.id ? it.id.toString() : 'item-' + Math.floor(Math.random() * 1000),
-                name: it.productName || 'Sản phẩm dã ngoại',
-                price: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(it.soldPrice || 0),
-                quantity: it.quantity || 1,
-                imageUrl: it.productImage || '/images/product-rod.png',
-              }))
-            };
-          });
-          setOrders(mappedOrders);
-        }
-      })
+    reloadOrders()
       .catch((err) => {
         console.error('Error fetching user orders:', err);
       });
@@ -196,6 +217,60 @@ export default function ProfileDashboard() {
   // Re-order Helper
   const handleReorder = (orderId: string) => {
     showToast(`Đã thêm lại tất cả sản phẩm của đơn hàng ${orderId} vào giỏ hàng!`, 'success');
+  };
+
+  const confirmReceived = async (order: Order) => {
+    try {
+      setSubmittingAction(true);
+      await orderApi.confirmReceived(order.id);
+      setDeliveryActionOrder(null);
+      await reloadOrders();
+      showToast('Đơn hàng đã hoàn thành. Bạn có thể đánh giá từng sản phẩm.');
+    } catch (error: any) {
+      showToast(error.message || 'Không thể xác nhận nhận hàng', 'error');
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const reportNotReceived = async () => {
+    if (!deliveryActionOrder || !reportReason.trim()) {
+      showToast('Vui lòng mô tả tình trạng chưa nhận được hàng', 'error');
+      return;
+    }
+    try {
+      setSubmittingAction(true);
+      await orderApi.reportNotReceived(deliveryActionOrder.id, reportReason.trim());
+      setDeliveryActionOrder(null);
+      setReportReason('');
+      await reloadOrders();
+      showToast('Báo cáo đã được gửi đến Admin xử lý', 'info');
+    } catch (error: any) {
+      showToast(error.message || 'Không thể gửi báo cáo', 'error');
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!reviewItem) return;
+    try {
+      setSubmittingAction(true);
+      await reviewApi.createReview({
+        orderId: Number(reviewItem.order.id),
+        productId: reviewItem.item.productId,
+        rating: reviewRating,
+        text: reviewText.trim(),
+      });
+      setReviewItem(null);
+      setReviewText('');
+      setReviewRating(5);
+      showToast('Đánh giá của bạn đã được lưu');
+    } catch (error: any) {
+      showToast(error.message || 'Không thể lưu đánh giá', 'error');
+    } finally {
+      setSubmittingAction(false);
+    }
   };
 
   // Address Submit (Add/Edit)
@@ -633,9 +708,10 @@ export default function ProfileDashboard() {
                           {/* Order Status Badge */}
                           <div>
                             <span className={`inline-block px-3 py-1 rounded-full text-label-sm font-semibold ${
-                              order.status === 'Đã giao' ? 'bg-[#e6f4ea] text-[#137333] border border-[#a8dab5]/30' :
-                              order.status === 'Đang giao' ? 'bg-[#e8f0fe] text-[#1a73e8] border border-[#adcbf7]/30' :
-                              order.status === 'Chờ xử lý' ? 'bg-[#fef7e0] text-[#b06000] border border-[#fde293]/30' :
+                              order.rawStatus === 'COMPLETED' ? 'bg-[#e6f4ea] text-[#137333] border border-[#a8dab5]/30' :
+                              order.rawStatus === 'DELIVERED' ? 'bg-cyan-50 text-cyan-700 border border-cyan-200' :
+                              order.rawStatus === 'SHIPPING' ? 'bg-[#e8f0fe] text-[#1a73e8] border border-[#adcbf7]/30' :
+                              order.rawStatus === 'PENDING' ? 'bg-[#fef7e0] text-[#b06000] border border-[#fde293]/30' :
                               'bg-[#fce8e6] text-[#c5221f] border border-[#f5b4ad]/30'
                             }`}>
                               {order.status}
@@ -669,6 +745,15 @@ export default function ProfileDashboard() {
                                 <span className="text-label-md font-semibold text-secondary">
                                   {item.price}
                                 </span>
+                                {order.rawStatus === 'COMPLETED' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setReviewItem({ order, item })}
+                                    className="mt-2 w-fit px-3 py-1.5 rounded-md border border-amber-300 text-amber-700 hover:bg-amber-50 text-label-sm font-semibold"
+                                  >
+                                    Đánh giá sản phẩm
+                                  </button>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -681,6 +766,25 @@ export default function ProfileDashboard() {
                             <span className="text-body-lg font-bold text-[#e05600] ml-xs">{order.total}</span>
                           </div>
                           <div className="flex gap-xs">
+                            {order.rawStatus === 'DELIVERED' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => { setDeliveryActionOrder(order); setReportReason(''); }}
+                                  className="px-4 py-2 border border-red-300 text-red-700 hover:bg-red-50 rounded-md text-label-sm font-semibold"
+                                >
+                                  Tôi chưa nhận được hàng
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => confirmReceived(order)}
+                                  disabled={submittingAction}
+                                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-md text-label-sm font-semibold text-white"
+                                >
+                                  Đã nhận được hàng
+                                </button>
+                              </>
+                            )}
                             <button
                               type="button"
                               className="px-4 py-2 border border-outline-variant/60 hover:border-primary hover:bg-primary/5 rounded-md text-label-sm font-semibold text-on-surface-variant hover:text-primary transition-all duration-200"
@@ -960,6 +1064,56 @@ export default function ProfileDashboard() {
         </div>
 
       </main>
+
+      {deliveryActionOrder && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 text-left">
+            <h2 className="text-xl font-bold text-on-surface">Báo cáo chưa nhận được hàng</h2>
+            <p className="mt-2 text-sm text-on-surface-variant">
+              Đơn #{deliveryActionOrder.id} đã được shipper đánh dấu đã giao. Báo cáo này sẽ chuyển đơn sang trạng thái chờ Admin xử lý.
+            </p>
+            <textarea
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value)}
+              maxLength={1000}
+              rows={4}
+              placeholder="Ví dụ: Tôi chưa nhận được kiện hàng, shipper chưa liên hệ..."
+              className="mt-4 w-full border border-outline-variant rounded-xl p-3 focus:outline-none focus:border-primary"
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button onClick={() => setDeliveryActionOrder(null)} className="px-4 py-2 rounded-lg bg-slate-100 font-semibold">Hủy</button>
+              <button disabled={submittingAction || !reportReason.trim()} onClick={reportNotReceived} className="px-4 py-2 rounded-lg bg-red-600 disabled:opacity-50 text-white font-semibold">Gửi báo cáo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewItem && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 text-left">
+            <h2 className="text-xl font-bold text-on-surface">Đánh giá {reviewItem.item.name}</h2>
+            <p className="mt-1 text-sm text-on-surface-variant">Đánh giá được lưu theo đơn hàng #{reviewItem.order.id}.</p>
+            <div className="flex gap-1 my-4">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button key={star} type="button" onClick={() => setReviewRating(star)} aria-label={`${star} sao`}>
+                  <Star className={`w-8 h-8 ${star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={reviewText}
+              onChange={(event) => setReviewText(event.target.value)}
+              rows={4}
+              placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."
+              className="w-full border border-outline-variant rounded-xl p-3 focus:outline-none focus:border-primary"
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button onClick={() => setReviewItem(null)} className="px-4 py-2 rounded-lg bg-slate-100 font-semibold">Hủy</button>
+              <button disabled={submittingAction} onClick={submitReview} className="px-4 py-2 rounded-lg bg-primary disabled:opacity-50 text-white font-semibold">Lưu đánh giá</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
       <Footer />

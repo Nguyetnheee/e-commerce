@@ -31,6 +31,9 @@ public class OrderDetailResponse {
     private String deliveryProofImage;
     private String codPaymentProofImage;
     private LocalDateTime deliveredAt;
+    private LocalDateTime customerConfirmedAt;
+    private String customerDeliveryReport;
+    private LocalDateTime customerReportedAt;
     private String deliveryFailureReason;
     private LocalDateTime deliveryFailedAt;
     private Integer deliveryAttemptCount;

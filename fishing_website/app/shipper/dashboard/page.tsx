@@ -29,7 +29,9 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   PACKING: { label: 'Chờ kho bàn giao', className: 'bg-blue-50 text-blue-700 border-blue-200' },
   SHIPPING: { label: 'Đang giao hàng', className: 'bg-amber-50 text-amber-700 border-amber-200' },
   DELIVERY_FAILED: { label: 'Giao không thành công', className: 'bg-red-50 text-red-700 border-red-200' },
-  DELIVERED: { label: 'Đã giao hàng', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  DELIVERED: { label: 'Đã giao - chờ khách xác nhận', className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+  DELIVERY_DISPUTED: { label: 'Khách báo chưa nhận', className: 'bg-red-50 text-red-700 border-red-300' },
+  COMPLETED: { label: 'Khách đã nhận - hoàn thành', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   RETURNED: { label: 'Đã trả về kho', className: 'bg-slate-100 text-slate-700 border-slate-300' },
   CANCELLED: { label: 'Đã hủy', className: 'bg-slate-100 text-slate-600 border-slate-300' },
 };
@@ -39,7 +41,9 @@ const FILTERS = [
   { value: 'PACKING', label: 'Chờ bàn giao' },
   { value: 'SHIPPING', label: 'Đang giao' },
   { value: 'DELIVERY_FAILED', label: 'Giao thất bại' },
-  { value: 'DELIVERED', label: 'Đã giao' },
+  { value: 'DELIVERED', label: 'Chờ khách xác nhận' },
+  { value: 'DELIVERY_DISPUTED', label: 'Khách báo chưa nhận' },
+  { value: 'COMPLETED', label: 'Hoàn thành' },
   { value: 'RETURNED', label: 'Trả về kho' },
 ];
 

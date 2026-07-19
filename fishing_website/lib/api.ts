@@ -145,6 +145,13 @@ export const orderApi = {
   recreatePaymentLink: (orderCode: string) => fetchAPI(`/api/v1/orders/${orderCode}/recreate-payment-link`, {
     method: 'POST',
   }),
+  confirmReceived: (orderId: number | string) => fetchAPI(`/api/v1/orders/${orderId}/confirm-received`, {
+    method: 'POST',
+  }),
+  reportNotReceived: (orderId: number | string, reason: string) => fetchAPI(`/api/v1/orders/${orderId}/report-not-received`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  }),
 };
 
 // Coupon endpoints
@@ -182,6 +189,7 @@ export const productApi = {
 
 // Review endpoints
 export const reviewApi = {
+  getMyReviews: () => fetchAPI('/api/v1/reviews/me'),
   getReviews: (productId: number | string, page: number = 0, size: number = 10) => 
     fetchAPI(`/api/v1/reviews?productId=${productId}&page=${page}&size=${size}`),
   createReview: (body: { orderId: number; productId: number; rating: number; text: string; images?: string[] }) => 
@@ -189,10 +197,19 @@ export const reviewApi = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  updateReview: (id: number | string, body: { orderId: number; productId: number; rating: number; text: string; images?: string[] }) =>
+    fetchAPI(`/api/v1/reviews/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteReview: (id: number | string) => fetchAPI(`/api/v1/reviews/${id}`, {
+    method: 'DELETE',
+  }),
 };
 
 // Admin Management endpoints
 export const adminApi = {
+  getReviews: (page = 0, size = 50) => fetchAPI(`/api/v1/admin/reviews?page=${page}&size=${size}`),
   getRevenueReport: (fromDate?: string, toDate?: string) => {
     let url = '/api/v1/admin/reports/revenue';
     const params = [];

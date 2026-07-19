@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Header from '../../../components/Header';
 import ProductCard from '../../../components/ProductCard';
 import Footer from '../../../components/Footer';
-import { Star, Heart, ShoppingCart, ShieldCheck, Compass, Info, ArrowLeft, ArrowRight, Check, Share2 } from 'lucide-react';
+import { Star, Heart, ShoppingCart, ShieldCheck, Compass, Info, ArrowLeft, ArrowRight, Check, Share2, Edit2, Trash2 } from 'lucide-react';
 import { reviewApi, cartApi, productApi, getAuthToken } from '../../../lib/api';
 
 export default function ProductDetailPage() {
@@ -91,6 +91,10 @@ export default function ProductDetailPage() {
   const [activeTab, setActiveTab] = useState<'details' | 'reviews'>('details');
 
   const [reviews, setReviews] = useState<any[]>([]);
+  const [myReviewIds, setMyReviewIds] = useState<Set<number>>(new Set());
+  const [editingReview, setEditingReview] = useState<any>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editText, setEditText] = useState('');
   const [loadingReviews, setLoadingReviews] = useState(false);
 
   const loadReviews = async () => {
@@ -102,6 +106,10 @@ export default function ProductDetailPage() {
         setReviews(res.content);
       } else if (Array.isArray(res)) {
         setReviews(res);
+      }
+      if (getAuthToken()) {
+        const mine = await reviewApi.getMyReviews();
+        setMyReviewIds(new Set((Array.isArray(mine) ? mine : []).map((review: any) => Number(review.id))));
       }
     } catch (err) {
       console.error('Error fetching reviews:', err);
@@ -115,6 +123,33 @@ export default function ProductDetailPage() {
       loadReviews();
     }
   }, [id]);
+
+  const saveReviewEdit = async () => {
+    if (!editingReview) return;
+    try {
+      await reviewApi.updateReview(editingReview.id, {
+        orderId: editingReview.orderId,
+        productId: editingReview.productId,
+        rating: editRating,
+        text: editText.trim(),
+        images: editingReview.images || [],
+      });
+      setEditingReview(null);
+      await loadReviews();
+    } catch (error: any) {
+      alert(error.message || 'Không thể sửa đánh giá');
+    }
+  };
+
+  const deleteOwnReview = async (review: any) => {
+    if (!window.confirm('Bạn chắc chắn muốn xóa đánh giá này?')) return;
+    try {
+      await reviewApi.deleteReview(review.id);
+      await loadReviews();
+    } catch (error: any) {
+      alert(error.message || 'Không thể xóa đánh giá');
+    }
+  };
 
   // List of images for product display
   const productImages = [
@@ -495,6 +530,19 @@ export default function ProductDetailPage() {
                                 ))}
                               </div>
                               <p className="text-[13px] text-on-surface-variant">{rev.text}</p>
+                              {myReviewIds.has(Number(rev.id)) && (
+                                <div className="flex gap-2 mt-2">
+                                  <button
+                                    onClick={() => { setEditingReview(rev); setEditRating(rev.rating); setEditText(rev.text || ''); }}
+                                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" /> Sửa
+                                  </button>
+                                  <button onClick={() => deleteOwnReview(rev)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline">
+                                    <Trash2 className="w-3.5 h-3.5" /> Xóa
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))
@@ -618,6 +666,26 @@ export default function ProductDetailPage() {
         </section>
 
       </main>
+
+      {editingReview && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 text-left">
+            <h2 className="text-xl font-bold">Sửa đánh giá của bạn</h2>
+            <div className="flex gap-1 my-4">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button key={star} onClick={() => setEditRating(star)}>
+                  <Star className={`w-8 h-8 ${star <= editRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+                </button>
+              ))}
+            </div>
+            <textarea value={editText} onChange={(event) => setEditText(event.target.value)} rows={4} className="w-full border rounded-xl p-3" />
+            <div className="mt-4 flex justify-end gap-3">
+              <button onClick={() => setEditingReview(null)} className="px-4 py-2 bg-slate-100 rounded-lg font-semibold">Hủy</button>
+              <button onClick={saveReviewEdit} className="px-4 py-2 bg-primary text-white rounded-lg font-semibold">Lưu thay đổi</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Redesigned Footer complying with Ministry of Industry and Trade regulations */}
       <Footer />

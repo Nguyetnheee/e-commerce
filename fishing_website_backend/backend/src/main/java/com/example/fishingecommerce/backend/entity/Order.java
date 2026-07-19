@@ -79,6 +79,15 @@ public class Order {
     @Column(name = "DeliveredAt")
     private LocalDateTime deliveredAt;
 
+    @Column(name = "CustomerConfirmedAt")
+    private LocalDateTime customerConfirmedAt;
+
+    @Column(name = "CustomerDeliveryReport", length = 1000)
+    private String customerDeliveryReport;
+
+    @Column(name = "CustomerReportedAt")
+    private LocalDateTime customerReportedAt;
+
     @Column(name = "DeliveryFailureReason", length = 500)
     private String deliveryFailureReason;
 

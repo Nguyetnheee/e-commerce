@@ -378,7 +378,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private Map<Long, Long> buildBestSellerRank() {
-        return orderRepository.findByStatus(OrderStatus.DELIVERED).stream()
+        return orderRepository.findByStatus(OrderStatus.COMPLETED).stream()
                 .flatMap(order -> order.getOrderItems() != null ? order.getOrderItems().stream() : java.util.stream.Stream.empty())
                 .filter(item -> item.getProduct() != null)
                 .collect(Collectors.groupingBy(item -> item.getProduct().getId(),

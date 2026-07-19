@@ -185,6 +185,10 @@ export default function AdminOrdersPage() {
       case 'RETURNED':
         return 'bg-slate-200 text-slate-800 border-slate-300';
       case 'DELIVERED':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      case 'DELIVERY_DISPUTED':
+        return 'bg-red-100 text-red-800 border-red-300';
+      case 'COMPLETED':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'CANCELLED':
         return 'bg-red-100 text-red-800 border-red-200';
@@ -200,7 +204,9 @@ export default function AdminOrdersPage() {
       case 'SHIPPING': return 'Đang giao';
       case 'DELIVERY_FAILED': return 'Giao không thành công';
       case 'RETURNED': return 'Đã trả về kho';
-      case 'DELIVERED': return 'Đã giao';
+      case 'DELIVERED': return 'Shipper đã giao - chờ khách xác nhận';
+      case 'DELIVERY_DISPUTED': return 'Khách báo chưa nhận hàng';
+      case 'COMPLETED': return 'Hoàn thành';
       case 'CANCELLED': return 'Đã hủy';
       default: return status;
     }
@@ -360,7 +366,7 @@ export default function AdminOrdersPage() {
                               Giao hàng (Ship)
                             </button>
                           )}
-                          {order.status === 'DELIVERY_FAILED' && (
+                          {(order.status === 'DELIVERY_FAILED' || order.status === 'DELIVERY_DISPUTED') && (
                             <>
                               <button
                                 onClick={() => handleUpdateStatus(order.id, 'SHIPPING')}
@@ -382,7 +388,7 @@ export default function AdminOrdersPage() {
                               </button>
                             </>
                           )}
-                          {(order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'RETURNED') && (
+                          {(order.status === 'DELIVERED' || order.status === 'COMPLETED' || order.status === 'CANCELLED' || order.status === 'RETURNED') && (
                             <span className="text-[11px] italic text-on-surface-variant/40">Không thể sửa</span>
                           )}
                         </div>
@@ -416,6 +422,16 @@ export default function AdminOrdersPage() {
                   #WS-{selectedOrder.id}
                 </h2>
               </div>
+
+              {selectedOrder.status === 'DELIVERY_DISPUTED' && (
+                <div className="rounded-2xl border border-red-300 bg-red-50 p-4">
+                  <h3 className="font-black text-red-800">Khách hàng báo chưa nhận được hàng</h3>
+                  <p className="mt-1 text-sm text-red-700">{selectedOrder.customerDeliveryReport || 'Không có mô tả'}</p>
+                  {selectedOrder.customerReportedAt && (
+                    <p className="mt-2 text-xs text-red-500">Gửi lúc {new Date(selectedOrder.customerReportedAt).toLocaleString('vi-VN')}</p>
+                  )}
+                </div>
+              )}
 
               {/* Recipient details */}
               <div className="bg-slate-50 border border-outline-variant/20 rounded-2xl p-sm md:p-md space-y-sm text-label-sm font-sans">
@@ -480,7 +496,7 @@ export default function AdminOrdersPage() {
               </div>
 
               {/* Actions details inside modal */}
-              {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && selectedOrder.status !== 'RETURNED' && (
+              {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'COMPLETED' && selectedOrder.status !== 'CANCELLED' && selectedOrder.status !== 'RETURNED' && (
                 <div className="pt-sm border-t border-outline-variant/10 flex justify-end gap-sm">
                   {selectedOrder.status === 'PENDING' && (
                     <>
@@ -506,7 +522,7 @@ export default function AdminOrdersPage() {
                       Giao đơn vị vận chuyển
                     </button>
                   )}
-                  {selectedOrder.status === 'DELIVERY_FAILED' && (
+                  {(selectedOrder.status === 'DELIVERY_FAILED' || selectedOrder.status === 'DELIVERY_DISPUTED') && (
                     <>
                       <button onClick={() => handleUpdateStatus(selectedOrder.id, 'SHIPPING')} className="bg-blue-600 text-white font-bold py-2.5 px-md rounded-xl">
                         Lên lịch giao lại

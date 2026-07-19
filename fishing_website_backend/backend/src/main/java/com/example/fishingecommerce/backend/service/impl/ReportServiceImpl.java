@@ -30,7 +30,7 @@ public class ReportServiceImpl implements ReportService {
         LocalDateTime from = fromDate != null ? fromDate.atStartOfDay() : LocalDateTime.MIN;
         LocalDateTime to = toDate != null ? toDate.atTime(LocalTime.MAX) : LocalDateTime.now();
 
-        List<Order> orders = orderRepository.findByStatusAndCreatedAtBetween(OrderStatus.DELIVERED, from, to);
+        List<Order> orders = orderRepository.findByStatusAndCreatedAtBetween(OrderStatus.COMPLETED, from, to);
 
         BigDecimal totalRevenue = orders.stream()
                 .map(o -> o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO)
@@ -63,7 +63,7 @@ public class ReportServiceImpl implements ReportService {
         LocalDateTime from = fromDate != null ? fromDate.atStartOfDay() : LocalDateTime.MIN;
         LocalDateTime to = toDate != null ? toDate.atTime(LocalTime.MAX) : LocalDateTime.now();
 
-        List<Order> orders = orderRepository.findByStatusAndCreatedAtBetween(OrderStatus.DELIVERED, from, to);
+        List<Order> orders = orderRepository.findByStatusAndCreatedAtBetween(OrderStatus.COMPLETED, from, to);
 
         return orders.stream()
                 .flatMap(o -> o.getOrderItems().stream())

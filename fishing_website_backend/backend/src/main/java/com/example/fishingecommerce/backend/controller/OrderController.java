@@ -1,6 +1,7 @@
 package com.example.fishingecommerce.backend.controller;
 
 import com.example.fishingecommerce.backend.dto.request.CreateOrderRequest;
+import com.example.fishingecommerce.backend.dto.request.DeliveryReportRequest;
 import com.example.fishingecommerce.backend.dto.request.ShippingFeeRequest;
 import com.example.fishingecommerce.backend.dto.response.OrderDetailResponse;
 import com.example.fishingecommerce.backend.dto.response.OrderResponse;
@@ -51,6 +52,24 @@ public class OrderController {
         Long userId = Long.valueOf(authentication.getName());
         List<OrderResponse> orders = orderService.getMyOrders(userId);
         return ResponseEntity.ok(orders);
+    }
+
+    @PostMapping("/{id}/confirm-received")
+    @Operation(summary = "Khách hàng xác nhận đã nhận hàng")
+    public ResponseEntity<OrderResponse> confirmReceived(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(orderService.confirmReceived(id, Long.valueOf(authentication.getName())));
+    }
+
+    @PostMapping("/{id}/report-not-received")
+    @Operation(summary = "Khách hàng báo chưa nhận được hàng")
+    public ResponseEntity<OrderResponse> reportNotReceived(
+            @PathVariable Long id,
+            @Valid @RequestBody DeliveryReportRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(orderService.reportNotReceived(
+                id, Long.valueOf(authentication.getName()), request.getReason()));
     }
 
     @GetMapping("/tracking/{orderCode}")

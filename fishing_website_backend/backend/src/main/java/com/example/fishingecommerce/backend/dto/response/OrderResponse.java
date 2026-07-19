@@ -26,6 +26,10 @@ public class OrderResponse {
     private String recipientPhone;
     private String shippingAddress;
     private String cancelReason;
+    private LocalDateTime deliveredAt;
+    private LocalDateTime customerConfirmedAt;
+    private String customerDeliveryReport;
+    private LocalDateTime customerReportedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<OrderItemResponse> items;

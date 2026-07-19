@@ -132,7 +132,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
 
         if (order.getStatus() == OrderStatus.CANCELLED
-                || order.getStatus() == OrderStatus.DELIVERED
+                || order.getStatus() == OrderStatus.COMPLETED
                 || order.getStatus() == OrderStatus.RETURNED) {
             throw new AppException(HttpStatus.BAD_REQUEST, "Không thể thay đổi trạng thái đơn hàng đã kết thúc");
         }
@@ -143,7 +143,9 @@ public class OrderServiceImpl implements OrderService {
                     "Shipper phải xác nhận ảnh giao hàng qua luồng giao hàng để hoàn tất đơn");
         }
         if (nextStatus == OrderStatus.SHIPPING) {
-            if (order.getStatus() != OrderStatus.PACKING && order.getStatus() != OrderStatus.DELIVERY_FAILED) {
+            if (order.getStatus() != OrderStatus.PACKING
+                    && order.getStatus() != OrderStatus.DELIVERY_FAILED
+                    && order.getStatus() != OrderStatus.DELIVERY_DISPUTED) {
                 throw new AppException(HttpStatus.BAD_REQUEST, "SH-001: Chỉ đơn đã đóng gói hoặc được duyệt giao lại mới có thể vận chuyển");
             }
             if (order.getAssignedShipper() == null) {
@@ -163,7 +165,9 @@ public class OrderServiceImpl implements OrderService {
             order.setDeliveryAttemptCount((order.getDeliveryAttemptCount() == null ? 0 : order.getDeliveryAttemptCount()) + 1);
             order.setDeliveryFailureReason(null);
             order.setDeliveryFailedAt(null);
-        } else if (nextStatus == OrderStatus.RETURNED && order.getStatus() != OrderStatus.DELIVERY_FAILED) {
+        } else if (nextStatus == OrderStatus.RETURNED
+                && order.getStatus() != OrderStatus.DELIVERY_FAILED
+                && order.getStatus() != OrderStatus.DELIVERY_DISPUTED) {
             throw new AppException(HttpStatus.BAD_REQUEST, "Chỉ đơn giao không thành công mới có thể trả lại kho");
         }
 
@@ -186,7 +190,7 @@ public class OrderServiceImpl implements OrderService {
             throw new AppException(HttpStatus.BAD_REQUEST, "Đơn hàng đã được hủy trước đó");
         }
 
-        if (order.getStatus() == OrderStatus.DELIVERED) {
+        if (order.getStatus() == OrderStatus.DELIVERED || order.getStatus() == OrderStatus.COMPLETED) {
             throw new AppException(HttpStatus.BAD_REQUEST, "Không thể hủy đơn hàng đã giao");
         }
 
@@ -232,6 +236,10 @@ public class OrderServiceImpl implements OrderService {
                     .recipientPhone(order.getRecipientPhone())
                     .shippingAddress(order.getShippingAddress())
                     .cancelReason(order.getCancelReason())
+                    .deliveredAt(order.getDeliveredAt())
+                    .customerConfirmedAt(order.getCustomerConfirmedAt())
+                    .customerDeliveryReport(order.getCustomerDeliveryReport())
+                    .customerReportedAt(order.getCustomerReportedAt())
                     .createdAt(order.getCreatedAt())
                     .updatedAt(order.getUpdatedAt())
                     .items(itemResponses)
@@ -364,10 +372,45 @@ public class OrderServiceImpl implements OrderService {
         Order saved = orderRepository.saveAndFlush(order);
         recordShippingEvent(saved, OrderStatus.DELIVERED,
                 codOrder
-                        ? "Giao hàng thành công, đã có ảnh giao hàng và ảnh chứng minh thu tiền COD"
-                        : "Giao hàng thành công, đã có ảnh xác nhận",
+                        ? "Shipper đã giao hàng, có ảnh giao hàng và ảnh thu tiền COD; chờ khách hàng xác nhận"
+                        : "Shipper đã giao hàng và có ảnh xác nhận; chờ khách hàng xác nhận",
                 "SHIPPER");
         return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse confirmReceived(Long orderId, Long userId) {
+        Order order = loadOwnedOrder(orderId, userId);
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Chỉ có thể xác nhận đơn đang chờ khách hàng nhận hàng");
+        }
+        order.setStatus(OrderStatus.COMPLETED);
+        order.setCustomerConfirmedAt(java.time.LocalDateTime.now());
+        order.setCustomerDeliveryReport(null);
+        order.setCustomerReportedAt(null);
+        Order saved = orderRepository.saveAndFlush(order);
+        recordShippingEvent(saved, OrderStatus.COMPLETED,
+                "Khách hàng xác nhận đã nhận đủ hàng; đơn hàng hoàn thành cho hai bên", "CUSTOMER");
+        return mapToCustomerOrderResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse reportNotReceived(Long orderId, Long userId, String reason) {
+        Order order = loadOwnedOrder(orderId, userId);
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new AppException(HttpStatus.BAD_REQUEST,
+                    "Chỉ có thể báo chưa nhận đối với đơn shipper đã đánh dấu đã giao");
+        }
+        order.setStatus(OrderStatus.DELIVERY_DISPUTED);
+        order.setCustomerDeliveryReport(reason.trim());
+        order.setCustomerReportedAt(java.time.LocalDateTime.now());
+        Order saved = orderRepository.saveAndFlush(order);
+        recordShippingEvent(saved, OrderStatus.DELIVERY_DISPUTED,
+                "Khách hàng báo chưa nhận được hàng: " + reason.trim(), "CUSTOMER");
+        return mapToCustomerOrderResponse(saved);
     }
 
     @Override
@@ -413,6 +456,9 @@ public class OrderServiceImpl implements OrderService {
                 .deliveryProofImage(order.getDeliveryProofImage())
                 .codPaymentProofImage(order.getCodPaymentProofImage())
                 .deliveredAt(order.getDeliveredAt())
+                .customerConfirmedAt(order.getCustomerConfirmedAt())
+                .customerDeliveryReport(order.getCustomerDeliveryReport())
+                .customerReportedAt(order.getCustomerReportedAt())
                 .deliveryFailureReason(order.getDeliveryFailureReason())
                 .deliveryFailedAt(order.getDeliveryFailedAt())
                 .deliveryAttemptCount(order.getDeliveryAttemptCount())
@@ -433,6 +479,40 @@ public class OrderServiceImpl implements OrderService {
                                 .createdAt(event.getCreatedAt())
                                 .build())
                         .toList())
+                .build();
+    }
+
+    private Order loadOwnedOrder(Long orderId, Long userId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));
+        if (order.getUser() == null || !order.getUser().getId().equals(userId)) {
+            throw new AppException(HttpStatus.FORBIDDEN, "Bạn không có quyền xử lý đơn hàng này");
+        }
+        return order;
+    }
+
+    private OrderResponse mapToCustomerOrderResponse(Order order) {
+        return OrderResponse.builder()
+                .id(order.getId())
+                .orderCode(order.getOrderCode())
+                .status(order.getStatus().name())
+                .paymentStatus(order.getPaymentStatus().name())
+                .paymentMethod(order.getPaymentMethod())
+                .totalAmount(order.getTotalAmount())
+                .discountAmount(order.getDiscountAmount())
+                .couponCode(order.getCouponCode())
+                .recipientName(order.getRecipientName())
+                .recipientPhone(order.getRecipientPhone())
+                .shippingAddress(order.getShippingAddress())
+                .cancelReason(order.getCancelReason())
+                .deliveredAt(order.getDeliveredAt())
+                .customerConfirmedAt(order.getCustomerConfirmedAt())
+                .customerDeliveryReport(order.getCustomerDeliveryReport())
+                .customerReportedAt(order.getCustomerReportedAt())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .items(order.getOrderItems() == null ? List.of() :
+                        order.getOrderItems().stream().map(this::mapItemToResponse).toList())
                 .build();
     }
 

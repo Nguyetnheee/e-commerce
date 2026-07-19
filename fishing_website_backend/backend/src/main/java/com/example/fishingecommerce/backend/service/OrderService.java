@@ -24,4 +24,6 @@ public interface OrderService {
     List<OrderDetailResponse> getAssignedDeliveries(Long shipperId);
     OrderDetailResponse completeDelivery(Long orderId, Long shipperId, String proofImageUrl, String codPaymentProofImageUrl);
     OrderDetailResponse failDelivery(Long orderId, Long shipperId, String reason);
+    OrderResponse confirmReceived(Long orderId, Long userId);
+    OrderResponse reportNotReceived(Long orderId, Long userId, String reason);
 }

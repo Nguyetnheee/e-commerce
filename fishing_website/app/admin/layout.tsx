@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   FolderTree,
-  Award
+  Award,
+  MessageSquare
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -73,6 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Danh mục', icon: FolderTree, path: '/admin/categories' },
     { name: 'Thương hiệu', icon: Award, path: '/admin/brands' },
     { name: 'Đơn hàng', icon: FileText, path: '/admin/orders' },
+    { name: 'Đánh giá', icon: MessageSquare, path: '/admin/reviews' },
     { name: 'Bài viết Blog', icon: Newspaper, path: '/admin/posts' },
     { name: 'Danh sách User', icon: Users, path: '/admin/users' },
     { name: 'Nhà cung cấp', icon: Building2, path: '/admin/suppliers' },
