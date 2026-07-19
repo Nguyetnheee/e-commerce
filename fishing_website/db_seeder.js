@@ -1,159 +1,157 @@
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 
 const config = {
   host: process.env.DB_HOST || 'localhost',
   port: Number(process.env.DB_PORT || 3306),
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_DATABASE || 'fishing_ecommerce'
+  database: process.env.DB_DATABASE || 'fishing_ecommerce',
+  charset: 'utf8mb4',
+  ssl: process.env.DB_SSL === 'false' ? undefined : { rejectUnauthorized: true }
 };
 
-const connection = mysql.createConnection(config);
+const brands = [
+  ['SHIMANO', 'Nhật Bản'],
+  ['DAIWA', 'Nhật Bản'],
+  ['ABU GARCIA', 'Thụy Điển'],
+  ['NATUREHIKE', 'Trung Quốc'],
+  ['PENN', 'Hoa Kỳ']
+];
 
-connection.connect(async (err) => {
-  if (err) {
-    console.error('Connection error:', err);
-    process.exit(1);
-  }
-  console.log('Connected to MySQL successfully!');
+const categories = [
+  ['Câu sông suối', 1],
+  ['Câu hồ', 2],
+  ['Câu biển', 3],
+  ['Cắm trại và dã ngoại', 4]
+];
 
-  // Describe product_tags first to get column names
-  connection.query('DESCRIBE product_tags', async (err, cols) => {
-    if (err) {
-      console.error('Error describing product_tags:', err);
-      connection.end();
-      return;
-    }
-    console.log('product_tags columns:', cols);
-    const prodIdCol = cols.find(c => c.Field.toLowerCase().includes('product'))?.Field || 'productid';
-    const tagIdCol = cols.find(c => c.Field.toLowerCase().includes('tag'))?.Field || 'tagid';
+const tags = ['Bán chạy', 'Sản phẩm mới', 'Cao cấp', 'Giá tốt'];
 
-    // Clear existing products to prevent duplicates or clean start
-    console.log('Cleaning existing products and variants...');
-    await queryPromise('DELETE FROM product_tags');
-    await queryPromise('DELETE FROM product_variants');
-    await queryPromise('DELETE FROM products');
+const products = [
+  ['RIVER-001', 'Cần câu suối Carbon River Master UL', 'Cần câu siêu nhẹ, phù hợp câu cá ở suối và khu vực nước chảy.', '/images/product-buggy.png', 'SHIMANO', 'Câu sông suối', 'Sản phẩm mới', 1250000, 110, 'SONG'],
+  ['RIVER-002', 'Cần câu Daiwa Presso Air AGS Ultralight', 'Cần ultralight trang bị khoen AGS, độ nhạy cao và trọng lượng nhẹ.', '/images/product-keitruck.png', 'DAIWA', 'Câu sông suối', 'Cao cấp', 8400000, 45, 'SONG'],
+  ['RIVER-003', 'Abu Garcia Troutin Marquis Nano', 'Phôi carbon nano bền và nhẹ, thích hợp cho những chuyến câu suối dài.', '/images/product-yellowfish.png', 'ABU GARCIA', 'Câu sông suối', 'Giá tốt', 3200000, 70, 'SONG'],
+  ['LAKE-001', 'Cần câu Shimano Holiday Spin', 'Cần câu đa dụng có độ đàn hồi tốt, phù hợp câu hồ và câu bờ.', '/images/product-holiday-spin.png', 'SHIMANO', 'Câu hồ', 'Bán chạy', 2450000, 95, 'HO'],
+  ['LAKE-002', 'Máy câu Shimano Stradic FM', 'Máy câu vận hành êm, hệ thống hãm ổn định cho nhiều loại cá hồ.', '/images/product-stradic-reel.png', 'SHIMANO', 'Câu hồ', 'Sản phẩm mới', 4650000, 60, 'HO'],
+  ['LAKE-003', 'Phao câu Titan siêu nhạy', 'Phao câu cân bằng tốt, tín hiệu rõ và dễ quan sát trong nhiều điều kiện.', '/images/product-titan-float.png', 'DAIWA', 'Câu hồ', 'Giá tốt', 320000, 180, 'HO'],
+  ['SEA-001', 'Máy câu Shimano Stella SW', 'Máy câu cao cấp dành cho câu biển, chịu tải lớn và chống ăn mòn.', '/images/product-stella.png', 'SHIMANO', 'Câu biển', 'Cao cấp', 18500000, 30, 'BIEN'],
+  ['SEA-002', 'Cần câu Carbon Daiwa Saltiga', 'Phôi carbon mật độ cao, nhẹ và bền cho các chuyến săn cá lớn.', '/images/product-saltiga.png', 'DAIWA', 'Câu biển', 'Cao cấp', 12200000, 35, 'BIEN'],
+  ['SEA-003', 'Bộ lưỡi câu Titan chống gỉ', 'Lưỡi câu titan sắc bén, chống ăn mòn trong môi trường nước mặn.', '/images/product-titan-hook.png', 'ABU GARCIA', 'Câu biển', 'Bán chạy', 850000, 150, 'BIEN'],
+  ['SEA-004', 'Máy câu Penn Senator 9/0', 'Máy câu biển mạnh mẽ, thích hợp câu cá ngừ và các loài cá lớn.', '/images/product-penn.png', 'PENN', 'Câu biển', 'Bán chạy', 5800000, 40, 'BIEN'],
+  ['SEA-005', 'Dây câu Braid X8 Super', 'Dây bện tám lõi bền, mượt và hỗ trợ quăng mồi xa.', '/images/product-braid.png', 'SHIMANO', 'Câu biển', 'Giá tốt', 1250000, 130, 'BIEN'],
+  ['CAMP-001', 'Lều cắm trại Naturehike 4 người', 'Lều bốn người chống thấm, khung chắc chắn và dễ dựng.', '/images/product-tent.png', 'NATUREHIKE', 'Cắm trại và dã ngoại', 'Bán chạy', 5800000, 42, 'CAM_TRAI'],
+  ['CAMP-002', 'Ghế dã ngoại xếp gọn WildStream', 'Ghế xếp gọn nhẹ, chịu lực tốt và thuận tiện khi di chuyển.', '/images/product-chair-terrain.png', 'NATUREHIKE', 'Cắm trại và dã ngoại', 'Sản phẩm mới', 2150000, 75, 'CAM_TRAI'],
+  ['CAMP-003', 'Thùng đồ dã ngoại đa năng 36L', 'Thùng chứa đồ chắc chắn, có thể sử dụng làm bàn dã ngoại.', '/images/product-box-tackle.png', 'NATUREHIKE', 'Cắm trại và dã ngoại', 'Giá tốt', 1550000, 85, 'CAM_TRAI'],
+  ['CAMP-004', 'Áo khoác dã ngoại chống tia UV', 'Áo nhẹ, thoáng khí, cản gió và chống nắng khi hoạt động ngoài trời.', '/images/product-shirt.png', 'NATUREHIKE', 'Cắm trại và dã ngoại', 'Sản phẩm mới', 1800000, 100, 'CAM_TRAI'],
+  ['CAMP-005', 'Xe kéo đồ dã ngoại gấp gọn', 'Xe kéo tải lớn, bánh địa hình và khung gấp gọn tiện lợi.', '/images/product-long-van.png', 'NATUREHIKE', 'Cắm trại và dã ngoại', 'Cao cấp', 3950000, 38, 'CAM_TRAI']
+];
 
-    // Products data to insert
-    const productsData = [
-      // Sông suối (catid: 1)
-      {
-        catid: 1, brandid: 1, name: 'Cần câu suối Carbon River Master UL',
-        description: 'Dòng cần siêu nhẹ tối ưu cho môi trường nước chảy mạnh suối tự nhiên.',
-        image: '/images/product-buggy.png', code: 'RIVER-001', price: 1250000, tagId: 1
-      },
-      {
-        catid: 1, brandid: 2, name: 'Cần câu Daiwa Presso Air AGS Ultralight',
-        description: 'Trang bị khoen AGS siêu nhẹ, cảm giác dòng cá tuyệt đỉnh trong khe suối.',
-        image: '/images/product-keitruck.png', code: 'RIVER-002', price: 8400000, tagId: 2
-      },
-      {
-        catid: 1, brandid: 3, name: 'Abu Garcia Troutin Marquis Nano Stream',
-        description: 'Sử dụng công nghệ Nano carbon tăng độ bền và giảm trọng lượng cần tối đa.',
-        image: '/images/product-yellowfish.png', code: 'RIVER-003', price: 3200000, tagId: null
-      },
+async function ensureNamedRow(connection, table, name, extraColumns = [], extraValues = []) {
+  const [rows] = await connection.execute(`SELECT id FROM ${table} WHERE name = ? LIMIT 1`, [name]);
+  if (rows.length) return rows[0].id;
 
-      // Biển (catid: 2)
-      {
-        catid: 2, brandid: 1, name: 'Máy câu Shimano bạo lực Stella SW',
-        description: 'Dòng máy cao cấp nhất cho câu biển, chịu lực cực đại...',
-        image: '/images/product-stella.png', code: 'SEA-001', price: 18500000, tagId: 1
-      },
-      {
-        catid: 2, brandid: 2, name: 'Cần Câu Carbon Daiwa Saltiga',
-        description: 'Phôi Carbon mật độ cao, cực nhẹ và dẻo dai cho những chuyến săn cá lớn.',
-        image: '/images/product-saltiga.png', code: 'SEA-002', price: 12200000, tagId: null
-      },
-      {
-        catid: 2, brandid: 3, name: 'Bộ Lưỡi Câu Titan Chống Gỉ',
-        description: 'Vật liệu Titan tinh khiết, sắc bén vĩnh viễn, chống ăn mòn muối biển.',
-        image: '/images/product-titan-hook.png', code: 'SEA-003', price: 850000, tagId: 2
-      },
-      {
-        catid: 2, brandid: 3, name: 'Máy Câu Penn Senator 9/0',
-        description: 'Huyền thoại cho những chuyến săn cá ngừ đại dương và cá mập.',
-        image: '/images/product-penn.png', code: 'SEA-004', price: 5800000, tagId: null
-      },
-      {
-        catid: 2, brandid: 1, name: 'Dây Câu Braid X8 Super',
-        description: 'Độ bền vượt trội, siêu mịn giúp giảm ma sát khi quăng mồi xa bờ.',
-        image: '/images/product-braid.png', code: 'SEA-005', price: 1250000, tagId: null
-      },
-      {
-        catid: 2, brandid: 3, name: 'Áo Câu Biển Chống Tia UV',
-        description: 'Vải thun lạnh cao cấp, thoát mồ hôi cực nhanh, bảo vệ da hiệu quả.',
-        image: '/images/product-shirt.png', code: 'SEA-006', price: 1800000, tagId: null
-      },
-
-      // Dã ngoại (catid: 3)
-      {
-        catid: 3, brandid: 4, name: 'Lều Cắm Trại 4 Người Peak-4',
-        description: 'Horizon 4 là sự kết hợp hoàn hảo giữa thiết kế tự bung thông minh và chống thấm PU3000mm.',
-        image: '/images/product-tent.png', code: 'CAMP-001', price: 5800000, tagId: 1
-      },
-      {
-        catid: 3, brandid: 4, name: 'Ghế Dã Ngoại Xếp Gọn WildStream',
-        description: 'Ghế xếp gọn dã ngoại chuyên dụng siêu nhẹ, chịu lực tốt.',
-        image: '/images/product-chair-terrain.png', code: 'CAMP-002', price: 2150000, tagId: null
-      },
-      {
-        catid: 3, brandid: 4, name: 'Thùng Đựng Đồ Dã Ngoại Đa Năng 36L',
-        description: 'Chất liệu nhựa cao cấp, đa dụng làm bàn ăn hoặc chứa đồ dã ngoại tiện lợi.',
-        image: '/images/product-box-tackle.png', code: 'CAMP-003', price: 1550000, tagId: null
-      },
-      {
-        catid: 3, brandid: 4, name: 'Áo Khoác Dã Ngoại Chống Tia UV',
-        description: 'Thiết kế thời trang dã ngoại, cản gió và chống nắng tối ưu.',
-        image: '/images/product-shirt.png', code: 'CAMP-004', price: 1800000, tagId: 2
-      }
-    ];
-
-    try {
-      for (const item of productsData) {
-        // Insert product
-        const insertProductSql = `
-          INSERT INTO products (name, description, image, is_visible, stock, brandid, catid, code, time)
-          VALUES (?, ?, ?, 1, 100, ?, ?, ?, ?)
-        `;
-        const timeVal = Date.now();
-        const pResult = await queryPromise(insertProductSql, [
-          item.name, item.description, item.image, item.brandid, item.catid, item.code, timeVal
-        ]);
-        const productId = pResult.insertId;
-
-        console.log(`Inserted product: ${item.name} with ID ${productId}`);
-
-        // Insert variant
-        const insertVariantSql = `
-          INSERT INTO product_variants (base_price, discount_price, sku, stock_quantity, variant_name, productid)
-          VALUES (?, NULL, ?, 100, 'Tiêu chuẩn', ?)
-        `;
-        const skuVal = `SKU-${item.code}-STD`;
-        await queryPromise(insertVariantSql, [item.price, skuVal, productId]);
-
-        // Insert tag mapping
-        if (item.tagId) {
-          const insertTagSql = `
-            INSERT INTO product_tags (${prodIdCol}, ${tagIdCol})
-            VALUES (?, ?)
-          `;
-          await queryPromise(insertTagSql, [productId, item.tagId]);
-        }
-      }
-      console.log('Seeding completed successfully!');
-    } catch (ex) {
-      console.error('Error seeding database:', ex);
-    } finally {
-      connection.end();
-    }
-  });
-});
-
-function queryPromise(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    connection.query(sql, params, (err, res) => {
-      if (err) reject(err);
-      else resolve(res);
-    });
-  });
+  const columns = ['name', ...extraColumns].join(', ');
+  const placeholders = new Array(1 + extraValues.length).fill('?').join(', ');
+  const [result] = await connection.execute(
+    `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`,
+    [name, ...extraValues]
+  );
+  return result.insertId;
 }
+
+async function seed() {
+  const connection = await mysql.createConnection(config);
+  const ids = { brands: {}, categories: {}, tags: {} };
+
+  try {
+    await connection.beginTransaction();
+
+    for (const [name, country] of brands) {
+      ids.brands[name] = await ensureNamedRow(connection, 'brands', name, ['country'], [country]);
+    }
+    for (const [name, sortOrder] of categories) {
+      ids.categories[name] = await ensureNamedRow(
+        connection,
+        'categories',
+        name,
+        ['sort_order', 'parentid'],
+        [sortOrder, null]
+      );
+    }
+    for (const name of tags) {
+      ids.tags[name] = await ensureNamedRow(connection, 'tags', name);
+    }
+
+    for (const [code, name, description, image, brand, category, tag, price, stock, usageType] of products) {
+      const [existing] = await connection.execute('SELECT id FROM products WHERE code = ? LIMIT 1', [code]);
+      let productId;
+
+      if (existing.length) {
+        productId = existing[0].id;
+        await connection.execute(
+          `UPDATE products
+             SET name = ?, description = ?, image = ?, is_visible = 1, stock = ?,
+                 brandid = ?, catid = ?, usage_type = ?
+           WHERE id = ?`,
+          [name, description, image, stock, ids.brands[brand], ids.categories[category], usageType, productId]
+        );
+      } else {
+        const [result] = await connection.execute(
+          `INSERT INTO products
+             (name, description, image, is_visible, stock, brandid, catid, code, time, usage_type)
+           VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+          [name, description, image, stock, ids.brands[brand], ids.categories[category], code, Date.now(), usageType]
+        );
+        productId = result.insertId;
+      }
+
+      const sku = `${code}-STD`;
+      const [variants] = await connection.execute(
+        'SELECT id FROM product_variants WHERE sku = ? LIMIT 1',
+        [sku]
+      );
+      if (variants.length) {
+        await connection.execute(
+          `UPDATE product_variants
+             SET base_price = ?, stock_quantity = ?, variant_name = ?, productid = ?
+           WHERE id = ?`,
+          [price, stock, 'Tiêu chuẩn', productId, variants[0].id]
+        );
+      } else {
+        await connection.execute(
+          `INSERT INTO product_variants
+             (base_price, discount_price, sku, stock_quantity, variant_name, productid)
+           VALUES (?, NULL, ?, ?, ?, ?)`,
+          [price, sku, stock, 'Tiêu chuẩn', productId]
+        );
+      }
+
+      await connection.execute(
+        'INSERT IGNORE INTO product_tags (productid, tagid) VALUES (?, ?)',
+        [productId, ids.tags[tag]]
+      );
+    }
+
+    await connection.commit();
+
+    const [counts] = await connection.query(`
+      SELECT
+        (SELECT COUNT(*) FROM brands) AS brands,
+        (SELECT COUNT(*) FROM categories) AS categories,
+        (SELECT COUNT(*) FROM tags) AS tags,
+        (SELECT COUNT(*) FROM products) AS products,
+        (SELECT COUNT(*) FROM product_variants) AS variants
+    `);
+    console.log('Seed completed:', counts[0]);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    await connection.end();
+  }
+}
+
+seed().catch((error) => {
+  console.error('Seed failed:', error.message);
+  process.exit(1);
+});
