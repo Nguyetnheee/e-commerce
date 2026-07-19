@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -13,5 +15,18 @@ import java.util.List;
 @AllArgsConstructor
 public class OrderResponse {
     private Long id;
+    private String orderCode;
+    private String status;
+    private String paymentStatus;
+    private String paymentMethod;
+    private BigDecimal totalAmount;
+    private BigDecimal discountAmount;
+    private String couponCode;
+    private String recipientName;
+    private String recipientPhone;
+    private String shippingAddress;
+    private String cancelReason;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private List<OrderItemResponse> items;
 }

@@ -166,7 +166,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderResponse> getMyOrders(Long userId) {
-        List<Order> orders = orderRepository.findByUserId(userId);
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
         return orders.stream().map(order -> {
             List<OrderItemResponse> itemResponses;
@@ -180,6 +180,19 @@ public class OrderServiceImpl implements OrderService {
 
             return OrderResponse.builder()
                     .id(order.getId())
+                    .orderCode(order.getOrderCode())
+                    .status(order.getStatus() != null ? order.getStatus().name() : OrderStatus.PENDING.name())
+                    .paymentStatus(order.getPaymentStatus() != null ? order.getPaymentStatus().name() : PaymentStatus.PENDING.name())
+                    .paymentMethod(order.getPaymentMethod())
+                    .totalAmount(order.getTotalAmount())
+                    .discountAmount(order.getDiscountAmount())
+                    .couponCode(order.getCouponCode())
+                    .recipientName(order.getRecipientName())
+                    .recipientPhone(order.getRecipientPhone())
+                    .shippingAddress(order.getShippingAddress())
+                    .cancelReason(order.getCancelReason())
+                    .createdAt(order.getCreatedAt())
+                    .updatedAt(order.getUpdatedAt())
                     .items(itemResponses)
                     .build();
         }).collect(Collectors.toList());
