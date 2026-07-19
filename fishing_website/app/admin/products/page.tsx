@@ -96,6 +96,7 @@ export default function AdminProductsPage() {
   const [editProdBrand, setEditProdBrand] = useState('');
   const [editProdSupplier, setEditProdSupplier] = useState('');
   const [editVariantPrices, setEditVariantPrices] = useState<Record<string, string>>({});
+  const [uploadingEditImage, setUploadingEditImage] = useState(false);
   const [savingEditProduct, setSavingEditProduct] = useState(false);
 
   const handleOpenEditProduct = (p: any) => {
@@ -291,6 +292,31 @@ export default function AdminProductsPage() {
       alert('Lỗi tải ảnh lên Cloudinary.');
     } finally {
       setUploadingImg(false);
+    }
+  };
+
+  const handleEditImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingEditImage(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Tải ảnh thất bại');
+      const data = await res.json();
+      setEditProdImage(data.secure_url);
+    } catch (err) {
+      alert('Lỗi tải ảnh lên Cloudinary.');
+    } finally {
+      setUploadingEditImage(false);
+      e.target.value = '';
     }
   };
 
@@ -1334,17 +1360,48 @@ export default function AdminProductsPage() {
                     </select>
                   </div>
 
-                  {/* Image URL */}
+                  {/* Product image preview and replacement */}
                   <div className="flex flex-col gap-0.5 md:col-span-2">
                     <label className="font-bold text-on-surface-variant">
-                      Hình ảnh sản phẩm (URL)
+                      Hình ảnh sản phẩm
                     </label>
-                    <input
-                      type="text"
-                      value={editProdImage}
-                      onChange={(e) => setEditProdImage(e.target.value)}
-                      className="w-full bg-[#f8f9fa] border border-[#e5e7eb] focus:border-primary rounded-lg py-2 px-3 focus:outline-none"
-                    />
+                    <div className="flex flex-col sm:flex-row gap-sm rounded-xl border border-[#e5e7eb] bg-slate-50 p-sm">
+                      <div className="w-full sm:w-40 h-32 flex-shrink-0 overflow-hidden rounded-xl border border-outline-variant/30 bg-white">
+                        <img
+                          src={editProdImage || '/images/product-rod.png'}
+                          alt={`Ảnh ${editProdName || 'sản phẩm'}`}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = '/images/product-rod.png';
+                          }}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <div className="flex flex-1 flex-col justify-center gap-xs min-w-0">
+                        <p className="text-[11px] text-on-surface-variant">
+                          Chọn ảnh JPG, PNG hoặc WEBP. Ảnh mới sẽ được lưu khi bạn bấm “Lưu thay đổi”.
+                        </p>
+                        <label className={`inline-flex w-fit items-center gap-xs rounded-lg px-md py-2 font-bold text-white transition-colors ${
+                          uploadingEditImage ? 'bg-primary/50 cursor-wait' : 'bg-primary hover:bg-[#1e40af] cursor-pointer'
+                        }`}>
+                          <UploadCloud className="w-4 h-4" />
+                          <span>{uploadingEditImage ? 'ĐANG TẢI ẢNH...' : 'CHỌN ẢNH MỚI'}</span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            disabled={uploadingEditImage}
+                            onChange={handleEditImageUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          value={editProdImage}
+                          onChange={(e) => setEditProdImage(e.target.value)}
+                          placeholder="Hoặc nhập URL hình ảnh..."
+                          className="w-full bg-white border border-[#e5e7eb] focus:border-primary rounded-lg py-1.5 px-3 focus:outline-none text-[11px]"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Description */}
