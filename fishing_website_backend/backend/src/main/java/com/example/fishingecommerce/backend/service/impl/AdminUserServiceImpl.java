@@ -40,7 +40,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminUserServiceImpl implements AdminUserService {
 
-    private static final Set<String> ADMIN_ROLE_NAMES = Set.of("ADMIN", "MANAGER", "APPROVER");
+    private static final Set<String> ADMIN_ROLE_NAMES = Set.of("ADMIN", "MANAGER", "APPROVER", "SHIPPER");
+    private static final Set<String> CREATABLE_ROLE_NAMES = Set.of("ADMIN", "MANAGER", "SHIPPER");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -51,17 +52,19 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final ReviewRepository reviewRepository;
 
     @Override
+    @Transactional
     public AdminUserResponse createAdminUser(CreateAdminUserRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new AppException(HttpStatus.BAD_REQUEST, "Email da ton tai");
         }
 
-        Set<Role> roles = resolveRoles(request.getRoleIds());
+        Set<Role> roles = resolveRoleName(request.getRoleName());
         String primaryRole = resolvePrimaryRoleName(roles);
 
         User user = User.builder()
-                .fullname(request.getUsername())
-                .email(request.getEmail())
+                .fullname(request.getUsername().trim())
+                .email(normalizedEmail)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(UserRole.valueOf(primaryRole))
                 .status(UserAccountStatus.ACTIVE)
@@ -72,11 +75,12 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
+    @Transactional
     public AdminUserResponse updateRoles(Long userId, UpdateRolesRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Khong tim thay nguoi dung"));
 
-        Set<Role> roles = resolveRoles(request.getRoleIds());
+        Set<Role> roles = resolveRoleName(request.getRoleName());
         user.setRoles(roles);
         user.setRole(UserRole.valueOf(resolvePrimaryRoleName(roles)));
         return mapToAdminResponse(userRepository.save(user));
@@ -188,6 +192,16 @@ public class AdminUserServiceImpl implements AdminUserService {
         return new HashSet<>(roleRepository.findAllById(roleIds));
     }
 
+    private Set<Role> resolveRoleName(String requestedRole) {
+        String roleName = requestedRole == null ? "" : requestedRole.trim().toUpperCase(Locale.ROOT);
+        if (!CREATABLE_ROLE_NAMES.contains(roleName)) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Vai tro chi duoc phep la ADMIN, MANAGER hoac SHIPPER");
+        }
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Role " + roleName + " chua duoc khoi tao"));
+        return Set.of(role);
+    }
+
     private String resolvePrimaryRoleName(Set<Role> roles) {
         if (roles == null || roles.isEmpty()) {
             return UserRole.MANAGER.name();
@@ -199,6 +213,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         if (roleNames.contains("MANAGER")) {
             return UserRole.MANAGER.name();
+        }
+        if (roleNames.contains("SHIPPER")) {
+            return UserRole.SHIPPER.name();
         }
         return UserRole.MANAGER.name();
     }

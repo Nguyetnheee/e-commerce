@@ -266,9 +266,9 @@ export const adminApi = {
     method: 'PUT',
     body: JSON.stringify({ stockQuantity, reason: reason || 'Nhập kho bổ sung' }),
   }),
-  updateRoles: (id: number | string, roleIds: number[]) => fetchAPI(`/api/v1/admin/users/${id}/roles`, {
+  updateRoles: (id: number | string, roleName: string) => fetchAPI(`/api/v1/admin/users/${id}/roles`, {
     method: 'PUT',
-    body: JSON.stringify({ roleIds }),
+    body: JSON.stringify({ roleName }),
   }),
   getCategoriesTree: () => fetchAPI('/api/v1/admin/categories/tree'),
   updateCategoriesTree: (tree: Array<{ id: number; parentId: number | null; sortOrder: number }>) => fetchAPI('/api/v1/admin/categories/tree', {

@@ -63,15 +63,17 @@ export default function AdminUsersPage() {
     }
     try {
       setSavingUser(true);
-      let roleIds = [3];
-      if (newRoleOption === 'kho') roleIds = [1, 2];
-      else if (newRoleOption === 'shipper') roleIds = [4];
+      const roleName = newRoleOption === 'kho'
+        ? 'MANAGER'
+        : newRoleOption === 'shipper'
+          ? 'SHIPPER'
+          : 'ADMIN';
 
       await adminApi.createAdminUser({
         username: newUsername.trim(),
         email: newEmail.trim(),
         password: newPassword,
-        roleIds,
+        roleName,
       });
       alert('Tạo tài khoản quản trị mới thành công!');
       setIsAddModalOpen(false);
@@ -93,11 +95,13 @@ export default function AdminUsersPage() {
     if (!editingUser) return;
     try {
       setUpdatingRoles(true);
-      let roleIds = [3];
-      if (selectedEditRole === 'kho') roleIds = [1, 2];
-      else if (selectedEditRole === 'shipper') roleIds = [4];
+      const roleName = selectedEditRole === 'kho'
+        ? 'MANAGER'
+        : selectedEditRole === 'shipper'
+          ? 'SHIPPER'
+          : 'ADMIN';
 
-      await adminApi.updateRoles(editingUser.id, roleIds);
+      await adminApi.updateRoles(editingUser.id, roleName);
       alert('Cập nhật phân quyền tài khoản thành công!');
       setEditingUser(null);
       loadUsers();
@@ -116,7 +120,7 @@ export default function AdminUsersPage() {
       const rolesLower = user.roles.map(r => r.toLowerCase());
       if (rolesLower.includes('admin')) option = 'admin';
       else if (rolesLower.includes('manager') || rolesLower.includes('approver')) option = 'kho';
-      else if (rolesLower.includes('user')) option = 'shipper';
+      else if (rolesLower.includes('shipper')) option = 'shipper';
     }
     setSelectedEditRole(option);
   };
@@ -300,7 +304,8 @@ export default function AdminUsersPage() {
                 <input
                   type="password"
                   required
-                  placeholder="Tối thiểu 5 ký tự..."
+                  minLength={6}
+                  placeholder="Tối thiểu 6 ký tự..."
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="bg-[#f8f9fa] border border-[#e5e7eb] rounded-lg py-2 px-3 text-body-sm text-on-surface focus:outline-none focus:border-primary"

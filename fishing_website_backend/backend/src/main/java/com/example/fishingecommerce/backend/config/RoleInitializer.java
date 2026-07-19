@@ -17,6 +17,7 @@ public class RoleInitializer {
             createRoleIfNotFound(roleRepository, "MANAGER");
             createRoleIfNotFound(roleRepository, "APPROVER");
             createRoleIfNotFound(roleRepository, "ADMIN");
+            createRoleIfNotFound(roleRepository, "SHIPPER");
             createRoleIfNotFound(roleRepository, "USER");
         };
     }

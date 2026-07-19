@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private static final Set<String> ADMIN_ROLE_NAMES = Set.of("ADMIN", "MANAGER", "APPROVER");
+    private static final Set<String> ADMIN_ROLE_NAMES = Set.of("ADMIN", "MANAGER", "APPROVER", "SHIPPER");
 
     private final UserRepository userRepo;
     private final RoleRepository roleRepository;
@@ -176,6 +176,7 @@ public class AuthServiceImpl implements AuthService {
         UserRole primaryRole = switch (requestedRole) {
             case "ADMIN" -> UserRole.ADMIN;
             case "MANAGER", "APPROVER" -> UserRole.MANAGER;
+            case "SHIPPER" -> UserRole.SHIPPER;
             default -> throw new AppException(HttpStatus.BAD_REQUEST, "Role khong hop le");
         };
 

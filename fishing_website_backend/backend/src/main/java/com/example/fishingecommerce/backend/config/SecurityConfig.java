@@ -52,7 +52,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/posts", "/api/v1/posts/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/brands", "/api/v1/categories/tree", "/api/v1/tags").permitAll()
                 .requestMatchers(SecurityConfig::isPublicProductReadRequest).permitAll()
-                .requestMatchers("/api/v1/admin/orders/**").hasAnyRole("ADMIN", "MANAGER", "APPROVER")
+                .requestMatchers("/api/v1/admin/orders/**").hasAnyRole("ADMIN", "MANAGER", "APPROVER", "SHIPPER")
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "MANAGER")
                 .anyRequest().authenticated()
             )

@@ -59,16 +59,15 @@ export default function AdminLoginPage() {
       .then((data) => {
         setLoading(false);
         
-        const normalizedEmail = emailOrPhone.trim().toLowerCase();
         let role = '';
         let displayRoleName = '';
         let redirectUrl = '';
 
-        if (normalizedEmail.includes('kho') || normalizedEmail.includes('warehouse') || data.role === 'MANAGER') {
+        if (data.role === 'MANAGER') {
           role = 'kho';
           displayRoleName = 'Quản lý Kho';
           redirectUrl = '/kho/dashboard';
-        } else if (normalizedEmail.includes('shipper') || normalizedEmail.includes('delivery') || data.role === 'USER') {
+        } else if (data.role === 'SHIPPER') {
           role = 'shipper';
           displayRoleName = 'Nhân viên Giao hàng';
           redirectUrl = '/shipper/dashboard';
