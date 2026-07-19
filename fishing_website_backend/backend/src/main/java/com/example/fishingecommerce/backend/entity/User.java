@@ -38,6 +38,7 @@ public class User {
     private String phone;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "role", columnDefinition = "varchar(32)")
     private UserRole role;
 
     @Enumerated(EnumType.STRING)
