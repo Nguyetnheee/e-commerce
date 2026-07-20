@@ -31,7 +31,7 @@ interface OrderItem {
 interface CustomerOrder {
   id: number;
   orderCode: string;
-  status: 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
+  status: 'PENDING' | 'PACKING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED' | 'COMPLETED';
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED';
   paymentMethod: string;
   totalAmount: number;
@@ -236,6 +236,14 @@ export default function OrderTrackingPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-bold truncate">{item.productName}</p>
                                 <p className="text-[11px] text-on-surface-variant">{item.variantName || 'Mặc định'} · Số lượng: {item.quantity}</p>
+                                {(order.status === 'DELIVERED' || order.status === 'COMPLETED') && (
+                                  <a
+                                    href="/profile?tab=orders"
+                                    className="mt-1 inline-block text-[11px] text-[#e05600] hover:underline font-bold"
+                                  >
+                                    ★ Đánh giá sản phẩm này
+                                  </a>
+                                )}
                               </div>
                               <span className="font-bold shrink-0">{formatPrice(item.soldPrice * item.quantity)}</span>
                             </div>

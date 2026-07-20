@@ -217,6 +217,14 @@ export default function ProfileDashboard() {
       .catch((err) => {
         console.error('Error fetching user orders:', err);
       });
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'orders') {
+        setActiveTab('orders');
+      }
+    }
   }, []);
 
   // Profile Save
@@ -804,7 +812,7 @@ export default function ProfileDashboard() {
                                 <span className="text-label-md font-semibold text-secondary">
                                   {item.price}
                                 </span>
-                                {order.rawStatus === 'COMPLETED' && (
+                                {(order.rawStatus === 'COMPLETED' || order.rawStatus === 'DELIVERED') && (
                                   <button
                                     type="button"
                                     onClick={() => setReviewItem({ order, item })}
