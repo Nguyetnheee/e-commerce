@@ -1,16 +1,14 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { XCircle, HelpCircle, RefreshCw, Home } from 'lucide-react';
+import { XCircle, HelpCircle, ShoppingCart, Home } from 'lucide-react';
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
-import { orderApi } from '../../../lib/api';
 
 function PaymentFailureContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [recreating, setRecreating] = useState(false);
 
   const orderCode =
     searchParams.get('orderCode') ||
@@ -29,27 +27,8 @@ function PaymentFailureContent() {
     searchParams.get('message') ||
     'Giao dịch đã bị hủy hoặc bị từ chối.';
 
-  const handleRepay = () => {
-    if (orderCode === 'N/A') {
-      router.push('/checkout');
-      return;
-    }
-    setRecreating(true);
-    orderApi.recreatePaymentLink(orderCode)
-      .then((res) => {
-        if (res && res.checkoutUrl) {
-          window.location.href = res.checkoutUrl;
-        } else {
-          alert('Không tìm thấy liên kết thanh toán mới. Vui lòng đặt hàng lại.');
-        }
-      })
-      .catch((err) => {
-        console.error('Error recreating payment link:', err);
-        alert(err.message || 'Lỗi khi tạo lại liên kết thanh toán. Vui lòng kiểm tra lại!');
-      })
-      .finally(() => {
-        setRecreating(false);
-      });
+  const handleReorder = () => {
+    router.push('/checkout');
   };
 
   return (
@@ -81,21 +60,20 @@ function PaymentFailureContent() {
         <div className="space-y-1">
           <span className="font-bold block">Gợi ý khắc phục:</span>
           <ul className="list-disc list-inside space-y-1 text-on-surface-variant/90 text-[11px]">
-            <li>Kiểm tra số dư tài khoản ngân hàng hoặc thẻ.</li>
-            <li>Thử lại bằng cổng PayOS hoặc chọn COD nếu cần.</li>
-            <li>Nếu giao dịch vẫn lỗi, hãy tạo lại đơn hàng từ trang checkout.</li>
+            <li>Giao dịch PayOS đã bị hủy hoặc chưa hoàn tất.</li>
+            <li>Đơn hàng cũ đã dừng xử lý, không thể thanh toán tiếp.</li>
+            <li>Vui lòng nhấn nút <strong>Đặt lại đơn hàng</strong> để tạo đơn hàng mới.</li>
           </ul>
         </div>
       </div>
 
       <div className="pt-sm space-y-xs">
         <button
-          onClick={handleRepay}
-          disabled={recreating}
-          className="w-full bg-[#00288e] hover:bg-[#1e40af] disabled:bg-primary/50 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-xs cursor-pointer transition-colors shadow-sm"
+          onClick={handleReorder}
+          className="w-full bg-[#00288e] hover:bg-[#1e40af] text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-xs cursor-pointer transition-colors shadow-sm"
         >
-          <RefreshCw className={`w-4 h-4 ${recreating ? 'animate-spin' : ''}`} />
-          <span>{recreating ? 'ĐANG TẠO LIÊN KẾT...' : 'THỬ THANH TOÁN LẠI ĐƠN HÀNG'}</span>
+          <ShoppingCart className="w-4 h-4" />
+          <span>ĐẶT LẠI ĐƠN HÀNG</span>
         </button>
 
         <button
