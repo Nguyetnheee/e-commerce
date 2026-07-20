@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import ToastAndBell from '../components/ToastAndBell';
+import AIChatPopup from '../components/AIChatPopup';
 
 export const metadata: Metadata = {
   title: 'Wild & Water | Trang bị dã ngoại & câu cá cao cấp',
@@ -17,7 +18,9 @@ export default function RootLayout({
       <body className="bg-background text-on-surface antialiased font-sans min-h-screen">
         {children}
         <ToastAndBell />
+        <AIChatPopup />
       </body>
     </html>
   );
 }
+
