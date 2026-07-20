@@ -218,7 +218,9 @@ export default function AdminProductsPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const res = await productApi.getProducts();
+      // Admin filters operate client-side, so load the complete catalog instead
+      // of Spring's default first page (20 products).
+      const res = await productApi.getProducts({ size: 500, sort: ['id,desc'] });
       if (res && Array.isArray(res.content)) {
         setProducts(res.content);
       } else if (Array.isArray(res)) {
