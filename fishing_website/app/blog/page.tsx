@@ -231,7 +231,7 @@ export default function BlogPage() {
       title: 'Review: Bộ dụng cụ sinh tồn WildStream X1 thế hệ mới',
       category: 'Đánh giá trang bị',
       summary: 'Một cái nhìn chi tiết về bộ dụng cụ đa năng vừa ra mắt, được thiết kế riêng cho những chuyến đi khắc nghiệt nhất với 18 công cụ cứu sinh...',
-      content: 'Bộ dụng cụ sinh tồn WildStream X1 là trợ thủ đắc lực cho những chuyến thám hiểm rừng sâu. Bộ sản phẩm bao gồm dao sinh tồn carbon, còi khẩn cấp, đá đánh lửa magnesium, cưa xích cầm tay, la bàn chống nhiễu, thẻ đa năng, và chăn cấp cứu phản nhiệt. Toàn bộ dụng cụ được sắp xếp gọn gàng trong hộp nhựa ABS chống va đập, chống nước tuyệt đối. Đây là trang bị thiết yếu giúp bạn tự tin xử lý mọi tình huống phát sinh nơi hoang dã.',
+      content: 'Bộ dụng cụ sinh tồn WildStream X1 là trợ thủ đắc lực cho những chuyến thám hiểm rừng sâu. Bộ sản phẩm bao gồm dao sinh tồn carbon, còi khẩn cấp, đá đánh lửa magnesium, cưa xích cầm tay, la bàn chống nhiễu, thẻ đa năng, và chăn cấp cứu phản nhiệt. Toàn bộ dụng cụ được sắp xếp gọn gàng trong hộp nhựa ABS chống va đập, chống nước tuyệt đối. Đây là trang bị thiết yếu giúp bạn tự tin xử lý mọi tình huống phát sinh giữa thiên nhiên.',
       date: '06 TH06, 2026',
       views: '2.4k',
       imageUrl: '/images/product-stella.png',

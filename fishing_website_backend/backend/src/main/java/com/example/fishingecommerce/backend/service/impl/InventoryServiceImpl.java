@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
 
-    private static final int LOW_STOCK_THRESHOLD = 5;
+    private static final int LOW_STOCK_THRESHOLD = 9;
 
     private final ProductVariantRepository variantRepository;
     private final InventoryLogRepository inventoryLogRepository;

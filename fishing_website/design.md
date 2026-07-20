@@ -6,7 +6,7 @@ Tài liệu này ghi lại các quy chuẩn, phong cách thiết kế và hệ t
 ---
 
 ## 1. Phong cách & Định hướng Thẩm mỹ Chủ đạo
-*   **Tinh thần thương hiệu:** *Wild & Water* kết hợp sự bền bỉ, mộc mạc của thiên nhiên hoang dã với sự hiện đại, tinh tế của thiết bị dã ngoại cao cấp.
+*   **Tinh thần thương hiệu:** *Wild & Water* kết hợp sự bền bỉ, mộc mạc của thiên nhiên trọn vẹn với sự hiện đại, tinh tế của thiết bị dã ngoại cao cấp.
 *   **Trải nghiệm thị giác (Visual Feeling):** 
     *   **Gọn gàng & Khoáng đạt:** Sử dụng khoảng trắng hợp lý (`spacing.lg`, `spacing.xl`).
     *   **Tactile (Cảm giác vật lý thực tế):** Bo góc lớn thân thiện (`rounded-2xl`), đổ bóng mềm mịn tạo chiều sâu (`shadow-ambient`).
@@ -21,7 +21,7 @@ Hệ thống màu sắc được cấu hình trong `tailwind.config.ts` nhằm m
 | Phân loại | Tên Màu | Mã HEX | Tailwind Class | Vai trò / Ngữ cảnh sử dụng |
 | :--- | :--- | :--- | :--- | :--- |
 | **Primary** | Ocean Blue | `#00288e` | `bg-primary`, `text-primary` | Màu thương hiệu chính, nút CTA nổi bật, link active, tiêu đề lớn. |
-| **Secondary** | Forest Green | `#1f6c3a` | `bg-secondary`, `text-secondary` | Dùng cho các chủ đề Sông suối, biểu tượng thiên nhiên hoang dã. |
+| **Secondary** | Forest Green | `#1f6c3a` | `bg-secondary`, `text-secondary` | Dùng cho các chủ đề Sông suối, biểu tượng thiên nhiên trọn vẹn. |
 | **Tertiary** | Rust / Orange Earth | `#5b2400` / `#7f3500` | `bg-tertiary`, `text-tertiary` | Dùng cho chủ đề Hồ cá, mang cảm giác mộc mạc, yên bình của đất. |
 | **Accent** | Accent Orange | `#e05600` | `bg-accent-orange` | Nhãn trạng thái nổi bật ("Mới về"), số đếm giỏ hàng, cảnh báo. |
 | **Background** | Light Gray | `#f8f9fa` | `bg-background` | Màu nền chung toàn trang, tạo cảm giác sạch sẽ, sang trọng. |

@@ -87,7 +87,7 @@ export default function LandingPage() {
         <section className="py-lg text-left md:text-center max-w-4xl mx-auto">
           {/* Centered large Headline with exact mockup text and break */}
           <h1 className="text-[36px] md:text-headline-xl text-primary font-bold tracking-tight leading-tight mb-sm md:text-center text-left">
-            Chinh phục mọi địa hình,<br className="hidden md:inline" />Trải nghiệm trọn chất hoang dã.
+            Chinh phục mọi địa hình,<br className="hidden md:inline" />Trải nghiệm trọn vẹn thiên nhiên.
           </h1>
 
           {/* Subtitle */}

@@ -91,29 +91,49 @@ export default function KhoDashboardPage() {
     try {
       const items = await adminApi.getAllInventoryItems();
       if (Array.isArray(items) && items.length > 0) {
-        setProducts(items.map((v: any) => ({
-          id: v.variantId || v.id,
-          sku: v.sku || `VAR-${v.id}`,
-          name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Sản phẩm #${v.id}`,
-          stock: Number(v.stockQuantity || 0),
-          price: Number(v.price || 0),
-          min: warehouseStats.lowStockThreshold || 5,
-          shelf: 'Kệ A-01',
-          status: Number(v.stockQuantity || 0) === 0 ? 'Hết hàng' : Number(v.stockQuantity || 0) <= (warehouseStats.lowStockThreshold || 5) ? 'Sắp hết' : 'Bình thường'
-        })));
+        const mapped = items.map((v: any) => {
+          const stock = Number(v.stockQuantity || 0);
+          return {
+            id: v.variantId || v.id,
+            sku: v.sku || `VAR-${v.id}`,
+            name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Sản phẩm #${v.id}`,
+            stock: stock,
+            price: Number(v.price || 0),
+            min: 10,
+            shelf: 'Kệ A-01',
+            status: stock === 0 ? 'Hết hàng' : stock < 10 ? 'Thiếu hàng' : 'Bình thường'
+          };
+        });
+        setProducts(mapped);
+        const lowStockCount = mapped.filter(p => p.stock < 10).length;
+        setWarehouseStats(prev => ({
+          ...prev,
+          lowStockSkuCount: lowStockCount,
+          lowStockThreshold: 10
+        }));
       } else {
         const alerts = await adminApi.getOutOfStockAlerts();
         if (Array.isArray(alerts)) {
-          setProducts(alerts.map((v: any) => ({
-            id: v.variantId || v.id,
-            sku: v.sku || `VAR-${v.id}`,
-            name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Lựa chọn sản phẩm #${v.id}`,
-            stock: Number(v.stockQuantity || 0),
-            price: Number(v.price || 0),
-            min: warehouseStats.lowStockThreshold || 5,
-            shelf: 'Chưa cập nhật',
-            status: Number(v.stockQuantity || 0) === 0 ? 'Hết hàng' : 'Sắp hết'
-          })));
+          const mapped = alerts.map((v: any) => {
+            const stock = Number(v.stockQuantity || 0);
+            return {
+              id: v.variantId || v.id,
+              sku: v.sku || `VAR-${v.id}`,
+              name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Lựa chọn sản phẩm #${v.id}`,
+              stock: stock,
+              price: Number(v.price || 0),
+              min: 10,
+              shelf: 'Chưa cập nhật',
+              status: stock === 0 ? 'Hết hàng' : stock < 10 ? 'Thiếu hàng' : 'Bình thường'
+            };
+          });
+          setProducts(mapped);
+          const lowStockCount = mapped.filter(p => p.stock < 10).length;
+          setWarehouseStats(prev => ({
+            ...prev,
+            lowStockSkuCount: lowStockCount,
+            lowStockThreshold: 10
+          }));
         }
       }
     } catch (e) {
@@ -381,11 +401,8 @@ export default function KhoDashboardPage() {
     setIsDetailModalOpen(true);
   };
 
-  // Filter low stock items based on search and stock logic
-  const lowStockItems = products.filter(p => {
-    // Only display items where stock <= p.min
-    const isLow = p.stock <= p.min;
-    if (!isLow) return false;
+  // Show all products filtered by search query
+  const displayProducts = products.filter(p => {
     if (searchQuery) {
       return p.sku.toLowerCase().includes(searchQuery.toLowerCase()) || 
              p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -450,7 +467,7 @@ export default function KhoDashboardPage() {
             <span className="text-label-sm text-[#a4f1b2] uppercase tracking-widest font-bold block mb-1">Hệ thống quản lý kho vận</span>
             <h1 className="text-headline-lg-mobile md:text-headline-md font-bold tracking-tight">Khu vực điều hành Kho hàng</h1>
             <p className="text-body-md text-white/80 mt-1">
-              Số liệu được tổng hợp trực tiếp từ cơ sở dữ liệu. Có <strong className="text-[#a4f1b2]">{warehouseStats.lowStockSkuCount} mã SKU</strong> còn tối đa {warehouseStats.lowStockThreshold} sản phẩm.
+              Số liệu được tổng hợp trực tiếp từ cơ sở dữ liệu. Có <strong className="text-[#a4f1b2]">{warehouseStats.lowStockSkuCount} mã SKU</strong> dưới 10 sản phẩm (cảnh báo thiếu hàng).
             </p>
           </div>
           
@@ -483,10 +500,10 @@ export default function KhoDashboardPage() {
           {/* Card 2 */}
           <div className="bg-white p-sm rounded-2xl border border-outline-variant/20 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-label-sm font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Cảnh báo sắp hết</span>
+              <span className="text-label-sm font-bold text-on-surface-variant/70 uppercase tracking-wider block mb-1">Cảnh báo thiếu hàng</span>
               <span className="text-headline-md font-bold text-amber-600 tracking-tight">{warehouseStats.lowStockSkuCount} SKU</span>
               <span className="text-[11px] text-amber-600 font-bold block mt-1">
-                Cần bổ sung gấp
+                Dưới 10 sản phẩm
               </span>
             </div>
             <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
@@ -543,7 +560,7 @@ export default function KhoDashboardPage() {
                         : 'border-transparent text-on-surface-variant/60 hover:text-on-surface'
                     }`}
                   >
-                    Cảnh báo tồn kho ({warehouseStats.lowStockSkuCount})
+                    Danh sách sản phẩm ({products.length})
                   </button>
                   <button
                     onClick={() => setActiveTab('vouchers')}
@@ -591,16 +608,16 @@ export default function KhoDashboardPage() {
                 )}
               </div>
 
-              {/* TAB 1: LOW STOCK WARNING TABLE */}
+              {/* TAB 1: PRODUCT LIST TABLE */}
               {activeTab === 'lowStock' && (
                 <div className="overflow-x-auto">
-                  {lowStockItems.length === 0 ? (
+                  {displayProducts.length === 0 ? (
                     <div className="text-center py-8">
-                      <div className="w-12 h-12 bg-emerald-50 text-[#1f6c3a] rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Check className="w-6 h-6" />
+                      <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Package className="w-6 h-6" />
                       </div>
-                      <p className="text-body-md text-on-surface font-semibold">Kho hàng an toàn!</p>
-                      <p className="text-label-sm text-on-surface-variant/60 mt-1">Tất cả sản phẩm hiện đang trên mức an toàn.</p>
+                      <p className="text-body-md text-on-surface font-semibold">Không tìm thấy sản phẩm!</p>
+                      <p className="text-label-sm text-on-surface-variant/60 mt-1">Không có sản phẩm nào phù hợp với tìm kiếm của bạn.</p>
                     </div>
                   ) : (
                     <table className="w-full text-left text-label-sm">
@@ -608,49 +625,52 @@ export default function KhoDashboardPage() {
                         <tr className="border-b border-outline-variant/30 text-on-surface-variant uppercase tracking-wider text-[11px] font-bold">
                           <th className="py-2.5">Mã SKU</th>
                           <th className="py-2.5">Tên sản phẩm</th>
-                          <th className="py-2.5 text-center">Tồn / Tối thiểu</th>
+                          <th className="py-2.5 text-center">Số lượng tồn (DB)</th>
                           <th className="py-2.5">Khu Vực Kệ</th>
                           <th className="py-2.5">Trạng thái</th>
                           <th className="py-2.5 text-right">Hành động</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/10 text-body-sm text-on-surface-variant font-sans">
-                        {lowStockItems.map((item) => (
+                        {displayProducts.map((item) => (
                           <tr key={item.sku} className="hover:bg-surface-container-lowest transition-colors">
                             <td className="py-3 font-mono font-bold text-[#1f6c3a]">{item.sku}</td>
                             <td className="py-3">
                               <span className="font-semibold text-on-surface block">{item.name}</span>
                             </td>
                             <td className="py-3 text-center font-bold">
-                              <span className={item.stock <= 2 ? 'text-error' : 'text-amber-600'}>
+                              <span className={item.stock < 10 ? 'text-error font-extrabold text-[15px]' : 'text-[#1f6c3a]'}>
                                 {item.stock}
                               </span>
-                              <span className="text-on-surface-variant/60"> / {item.min}</span>
+                              <span className="text-on-surface-variant/60"> sp</span>
                             </td>
                             <td className="py-3 font-semibold">{item.shelf}</td>
                             <td className="py-3">
                               <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
-                                item.status === 'Cực thấp'
-                                  ? 'bg-red-50 text-error border-red-200'
-                                  : item.status === 'Đang nhập'
-                                    ? 'bg-blue-50 text-blue-600 border-blue-200'
-                                    : 'bg-amber-50 text-amber-600 border-amber-200'
+                                item.status === 'Hết hàng'
+                                  ? 'bg-red-100 text-error border-red-300'
+                                  : item.status === 'Thiếu hàng'
+                                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               }`}>
                                 {item.status}
                               </span>
                             </td>
                             <td className="py-3 text-right">
-                              {item.status !== 'Đang nhập' ? (
+                              {item.stock < 10 ? (
+                                <button
+                                  onClick={() => handleReplenish(item)}
+                                  className="bg-error hover:bg-error/90 text-white font-bold text-[11px] px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+                                >
+                                  Bổ sung gấp
+                                </button>
+                              ) : (
                                 <button
                                   onClick={() => handleReplenish(item)}
                                   className="bg-secondary hover:bg-secondary/90 text-white font-bold text-[11px] px-2.5 py-1 rounded-md transition-colors cursor-pointer"
                                 >
-                                  Yêu cầu nhập
+                                  Nhập thêm
                                 </button>
-                              ) : (
-                                <span className="text-[11px] text-blue-600 font-bold flex items-center justify-end gap-1">
-                                  <Check className="w-3.5 h-3.5" /> Đã gửi yêu cầu
-                                </span>
                               )}
                             </td>
                           </tr>

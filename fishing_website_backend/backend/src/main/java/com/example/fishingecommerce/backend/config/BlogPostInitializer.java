@@ -131,7 +131,7 @@ public class BlogPostInitializer {
                                 <ol>
                                     <li>Không để lại rác thải nhựa nơi cắm trại.</li>
                                     <li>Không đốt lửa trại trực tiếp trên thảm cỏ tự nhiên.</li>
-                                    <li>Không gây tiếng ồn lớn ảnh hưởng đến động vật hoang dã.</li>
+                                    <li>Không gây tiếng ồn lớn ảnh hưởng đến động vật tự nhiên.</li>
                                     <li>Không xả xà phòng trực tiếp xuống nguồn nước suối.</li>
                                     <li>Không tự ý chặt phá cây rừng tươi.</li>
                                 </ol>
