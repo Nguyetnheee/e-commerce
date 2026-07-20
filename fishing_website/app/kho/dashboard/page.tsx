@@ -50,11 +50,12 @@ export default function KhoDashboardPage() {
   });
 
   // Tab & Modal control states
-  const [activeTab, setActiveTab] = useState<'lowStock' | 'vouchers' | 'packingOrders'>('lowStock');
+  const [activeTab, setActiveTab] = useState<'lowStock' | 'vouchers' | 'packingOrders' | 'returnInspection'>('lowStock');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [returnItems, setReturnItems] = useState<any[]>([]);
 
   // Form State for creating a new voucher
   const [newVoucher, setNewVoucher] = useState({
@@ -157,6 +158,15 @@ export default function KhoDashboardPage() {
       }
     } catch (e) {
       console.error('Không thể tải phiếu nhập kho:', e);
+    }
+
+    try {
+      const apiReturns = await adminApi.getReturns();
+      if (Array.isArray(apiReturns)) {
+        setReturnItems(apiReturns);
+      }
+    } catch (e) {
+      console.error('Không thể tải gói hàng trả kho:', e);
     }
 
     try {
@@ -555,6 +565,16 @@ export default function KhoDashboardPage() {
                   >
                     Lấy & Đóng gói đơn ({orders.length})
                   </button>
+                  <button
+                    onClick={() => setActiveTab('returnInspection')}
+                    className={`pb-2 text-body-lg font-bold tracking-tight border-b-2 transition-all duration-200 cursor-pointer ${
+                      activeTab === 'returnInspection' 
+                        ? 'border-[#1f6c3a] text-[#1f6c3a]' 
+                        : 'border-transparent text-on-surface-variant/60 hover:text-on-surface'
+                    }`}
+                  >
+                    Kiểm kho Hàng trả (17.6) ({returnItems.length})
+                  </button>
                 </div>
                 
                 {activeTab === 'lowStock' && (
@@ -752,6 +772,85 @@ export default function KhoDashboardPage() {
                                 >
                                   Đóng gói xong (Ship)
                                 </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: RETURN INSPECTION (POLICY 17.6) */}
+              {activeTab === 'returnInspection' && (
+                <div className="overflow-x-auto space-y-3">
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900">
+                    <strong>Chính sách 17.6 — Kiểm tra hàng trả về kho:</strong> Sản phẩm đạt chất lượng -&gt; Bấm <em>"Khôi phục tồn kho"</em> để cộng số lượng lại CSDL. Nếu sản phẩm hư hỏng -&gt; Bấm <em>"Đánh dấu hư hỏng"</em>.
+                  </div>
+                  {returnItems.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500">Chưa có gói hàng hoàn trả nào cần kiểm tra.</div>
+                  ) : (
+                    <table className="w-full text-left text-label-sm">
+                      <thead>
+                        <tr className="border-b border-outline-variant/30 text-on-surface-variant uppercase tracking-wider text-[11px] font-bold">
+                          <th className="py-2.5">Mã trả hàng</th>
+                          <th className="py-2.5">Sản phẩm / SKU</th>
+                          <th className="py-2.5 text-center">Số lượng</th>
+                          <th className="py-2.5">Trạng thái</th>
+                          <th className="py-2.5 text-right">Quyết định kiểm định (17.6)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant/10 text-body-sm font-sans">
+                        {returnItems.map((ret: any) => (
+                          <tr key={ret.id} className="hover:bg-slate-50/50">
+                            <td className="py-3 font-mono font-bold text-amber-800">{ret.id}</td>
+                            <td className="py-3">
+                              <span className="font-semibold text-on-surface block">{ret.productName}</span>
+                              <span className="text-[11px] font-mono text-slate-500">SKU: {ret.variantSku || 'N/A'}</span>
+                            </td>
+                            <td className="py-3 text-center font-bold">{ret.quantity || 1}</td>
+                            <td className="py-3">
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                                ret.status === 'RESTOCKED'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : ret.status === 'DISPOSED'
+                                    ? 'bg-slate-100 text-slate-600 border-slate-300'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}>
+                                {ret.status === 'RESTOCKED' ? 'ĐÃ KHÔI PHỤC TỒN KHO' : ret.status === 'DISPOSED' ? 'HÀNG HƯ HỎNG' : 'CHỜ KIỂM ĐỊNH'}
+                              </span>
+                            </td>
+                            <td className="py-3 text-right">
+                              {ret.status === 'PENDING_INSPECTION' || ret.status === 'PENDING_APPROVAL' ? (
+                                <div className="flex justify-end gap-1">
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await adminApi.restockReturn(ret.id);
+                                        alert('Đã chấp nhận & khôi phục tồn kho CSDL thành công!');
+                                        fetchRealWarehouseData();
+                                      } catch (e: any) { alert(e.message); }
+                                    }}
+                                    className="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-1 rounded shadow-xs cursor-pointer"
+                                  >
+                                    ✅ Khôi phục tồn kho
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await adminApi.disposeReturn(ret.id);
+                                        alert('Đã ghi nhận Hàng lưu kho bị hư hỏng (17.6)!');
+                                        fetchRealWarehouseData();
+                                      } catch (e: any) { alert(e.message); }
+                                    }}
+                                    className="bg-slate-600 text-white font-bold text-[10px] px-2.5 py-1 rounded shadow-xs cursor-pointer"
+                                  >
+                                    ⚠️ Đánh dấu hư hỏng
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400 italic font-semibold">Đã hoàn tất</span>
                               )}
                             </td>
                           </tr>

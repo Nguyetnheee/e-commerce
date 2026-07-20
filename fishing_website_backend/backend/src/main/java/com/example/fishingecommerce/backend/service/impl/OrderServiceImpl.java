@@ -119,10 +119,8 @@ public class OrderServiceImpl implements OrderService {
     public List<OrderDetailResponse> findOrders(OrderStatus status) {
         List<Order> orders = status != null ? orderRepository.findByStatus(status) : orderRepository.findAll();
         orders.sort((o1, o2) -> {
-            LocalDateTime t1 = o1.getOrderDate() != null ? o1.getOrderDate() : o1.getCreatedAt();
-            LocalDateTime t2 = o2.getOrderDate() != null ? o2.getOrderDate() : o2.getCreatedAt();
-            if (t1 != null && t2 != null) {
-                int cmp = t2.compareTo(t1);
+            if (o1.getCreatedAt() != null && o2.getCreatedAt() != null) {
+                int cmp = o2.getCreatedAt().compareTo(o1.getCreatedAt());
                 if (cmp != 0) return cmp;
             }
             return Long.compare(o2.getId(), o1.getId());

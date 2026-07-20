@@ -444,7 +444,37 @@ export default function AdminOrdersPage() {
                 </div>
               )}
 
-              {/* Recipient details */}
+              {selectedOrder.status === 'DELIVERY_FAILED' && (
+                <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-4 space-y-2 text-left">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded inline-block">
+                    Chính sách 7.5 — Giao hàng không thành công
+                  </span>
+                  <h3 className="font-bold text-amber-900 text-body-md">Đánh giá của Quản trị viên</h3>
+                  <p className="text-body-sm text-amber-800">
+                    <strong>Lý do từ Shipper:</strong> {selectedOrder.shippingEvents && selectedOrder.shippingEvents.length > 0 ? selectedOrder.shippingEvents[selectedOrder.shippingEvents.length - 1].note : 'Khách hàng không có sẵn'}
+                  </p>
+                  <div className="pt-2 border-t border-amber-200/60 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleUpdateStatus(selectedOrder.id, 'SHIPPING')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-xs cursor-pointer"
+                    >
+                      1. Lên lịch giao lại (RESCHEDULE)
+                    </button>
+                    <button
+                      onClick={() => handleCancelOrder(selectedOrder.id)}
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-xs cursor-pointer"
+                    >
+                      2. Hủy đơn hàng (CANCEL)
+                    </button>
+                    <button
+                      onClick={() => handleUpdateStatus(selectedOrder.id, 'RETURNED')}
+                      className="bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-xs cursor-pointer"
+                    >
+                      3. Trả gói hàng về kho (RETURNED)
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="bg-slate-50 border border-outline-variant/20 rounded-2xl p-sm md:p-md space-y-sm text-label-sm font-sans">
                 <h3 className="font-bold text-on-surface border-b border-slate-200 pb-2 flex items-center gap-xs">
                   <User className="w-4 h-4 text-primary" />

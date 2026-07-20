@@ -44,8 +44,12 @@ public class ReturnServiceImpl implements ReturnService {
                 .variantSku(request.getVariantSku())
                 .quantity(request.getQuantity())
                 .reason(request.getReason())
+                .refundAmount(request.getRefundAmount())
+                .bankName(request.getBankName())
+                .bankAccount(request.getBankAccount())
+                .bankHolder(request.getBankHolder())
                 .date(request.getDate() != null ? request.getDate() : LocalDate.now())
-                .status(ReturnRequestStatus.PENDING_INSPECTION)
+                .status(request.getBankName() != null && !request.getBankName().isBlank() ? ReturnRequestStatus.PENDING_APPROVAL : ReturnRequestStatus.PENDING_INSPECTION)
                 .build();
 
         return mapToResponse(returnRequestRepository.save(returnRequest));
@@ -53,29 +57,78 @@ public class ReturnServiceImpl implements ReturnService {
 
     @Override
     @Transactional
-    public ReturnActionResponse restock(String code) {
+    public ReturnActionResponse approve(String code) {
         ReturnRequest returnRequest = loadReturn(code);
-        ensureActionable(returnRequest);
-
-        if (returnRequest.getVariantId() == null) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "Return record is missing variantId");
-        }
-
-        var variantResponse = productVariantService.adjustStock(
-                returnRequest.getVariantId(),
-                returnRequest.getQuantity(),
-                "Return restock " + returnRequest.getCode(),
-                "warehouse"
-        );
-
-        returnRequest.setStatus(ReturnRequestStatus.RESTOCKED);
+        returnRequest.setStatus(ReturnRequestStatus.APPROVED);
         returnRequestRepository.save(returnRequest);
 
         return ReturnActionResponse.builder()
                 .returnId(returnRequest.getCode())
                 .status(returnRequest.getStatus())
-                .message("Product was restocked successfully.")
-                .newStock(variantResponse.getStockQuantity())
+                .message("Return request approved by admin.")
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public ReturnActionResponse reject(String code, String reason) {
+        ReturnRequest returnRequest = loadReturn(code);
+        returnRequest.setStatus(ReturnRequestStatus.REJECTED);
+        if (reason != null && !reason.isBlank()) {
+            returnRequest.setInspectionNote(reason);
+        }
+        returnRequestRepository.save(returnRequest);
+
+        return ReturnActionResponse.builder()
+                .returnId(returnRequest.getCode())
+                .status(returnRequest.getStatus())
+                .message("Return request rejected by admin.")
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public ReturnActionResponse refund(String code) {
+        ReturnRequest returnRequest = loadReturn(code);
+        returnRequest.setStatus(ReturnRequestStatus.REFUNDED);
+        returnRequestRepository.save(returnRequest);
+
+        return ReturnActionResponse.builder()
+                .returnId(returnRequest.getCode())
+                .status(returnRequest.getStatus())
+                .message("Bank transfer refund completed successfully.")
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public ReturnActionResponse restock(String code) {
+        ReturnRequest returnRequest = loadReturn(code);
+
+        if (returnRequest.getVariantId() != null) {
+            var variantResponse = productVariantService.adjustStock(
+                    returnRequest.getVariantId(),
+                    returnRequest.getQuantity() != null ? returnRequest.getQuantity() : 1,
+                    "Return restock " + returnRequest.getCode(),
+                    "warehouse"
+            );
+            returnRequest.setStatus(ReturnRequestStatus.RESTOCKED);
+            returnRequestRepository.save(returnRequest);
+
+            return ReturnActionResponse.builder()
+                    .returnId(returnRequest.getCode())
+                    .status(returnRequest.getStatus())
+                    .message("Product was inspected & restocked successfully into DB.")
+                    .newStock(variantResponse.getStockQuantity())
+                    .build();
+        }
+
+        returnRequest.setStatus(ReturnRequestStatus.RESTOCKED);
+        returnRequestRepository.save(returnRequest);
+        return ReturnActionResponse.builder()
+                .returnId(returnRequest.getCode())
+                .status(returnRequest.getStatus())
+                .message("Return record marked as restocked.")
                 .build();
     }
 
@@ -83,15 +136,15 @@ public class ReturnServiceImpl implements ReturnService {
     @Transactional
     public ReturnActionResponse dispose(String code) {
         ReturnRequest returnRequest = loadReturn(code);
-        ensureActionable(returnRequest);
 
         returnRequest.setStatus(ReturnRequestStatus.DISPOSED);
+        returnRequest.setInspectionNote("Hàng lưu kho bị hư hỏng / Tiêu hủy theo chính sách 17.6");
         returnRequestRepository.save(returnRequest);
 
         return ReturnActionResponse.builder()
                 .returnId(returnRequest.getCode())
                 .status(returnRequest.getStatus())
-                .message("Product was disposed successfully.")
+                .message("Product marked as damaged stock / disposed.")
                 .newStock(null)
                 .build();
     }
@@ -122,6 +175,11 @@ public class ReturnServiceImpl implements ReturnService {
                 .variantSku(returnRequest.getVariantSku())
                 .quantity(returnRequest.getQuantity())
                 .reason(returnRequest.getReason())
+                .refundAmount(returnRequest.getRefundAmount())
+                .bankName(returnRequest.getBankName())
+                .bankAccount(returnRequest.getBankAccount())
+                .bankHolder(returnRequest.getBankHolder())
+                .inspectionNote(returnRequest.getInspectionNote())
                 .date(returnRequest.getDate())
                 .status(returnRequest.getStatus())
                 .createdAt(returnRequest.getCreatedAt())

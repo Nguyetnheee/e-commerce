@@ -48,11 +48,11 @@ const FILTERS = [
 ];
 
 const FAILURE_REASONS = [
-  'Khách hàng không có mặt',
+  'Khách hàng không có sẵn',
   'Địa chỉ không chính xác',
-  'Khách hàng từ chối nhận gói hàng',
-  'Điều kiện thời tiết không đảm bảo',
-  'Vấn đề hậu cần hoặc phương tiện',
+  'Khách hàng từ chối gói hàng',
+  'Điều kiện thời tiết',
+  'Vấn đề hậu cần',
 ];
 
 const money = (value: number | string | null | undefined) =>

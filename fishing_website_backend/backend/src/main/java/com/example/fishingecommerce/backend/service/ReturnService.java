@@ -9,6 +9,9 @@ import java.util.List;
 public interface ReturnService {
     List<ReturnRequestResponse> findAll();
     ReturnRequestResponse create(CreateReturnRequest request);
+    ReturnActionResponse approve(String code);
+    ReturnActionResponse reject(String code, String reason);
+    ReturnActionResponse refund(String code);
     ReturnActionResponse restock(String code);
     ReturnActionResponse dispose(String code);
 }

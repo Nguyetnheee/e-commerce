@@ -44,6 +44,21 @@ public class ReturnRequest {
     @Column(name = "Reason")
     private String reason;
 
+    @Column(name = "RefundAmount", precision = 12, scale = 2)
+    private java.math.BigDecimal refundAmount;
+
+    @Column(name = "BankName")
+    private String bankName;
+
+    @Column(name = "BankAccount")
+    private String bankAccount;
+
+    @Column(name = "BankHolder")
+    private String bankHolder;
+
+    @Column(name = "InspectionNote")
+    private String inspectionNote;
+
     @Column(name = "ReturnDate")
     private LocalDate date;
 

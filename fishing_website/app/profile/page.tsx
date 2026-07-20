@@ -26,7 +26,7 @@ import {
   ChevronRight,
   Send
 } from 'lucide-react';
-import { userApi, orderApi, reviewApi, getAuthToken } from '../../lib/api';
+import { userApi, orderApi, reviewApi, returnApi, getAuthToken } from '../../lib/api';
 
 interface OrderItem {
   id: string;
@@ -43,6 +43,7 @@ interface Order {
   deliveredAt?: string;
   date: string;
   total: string;
+  rawTotal?: number;
   status: string;
   items: OrderItem[];
 }
@@ -106,6 +107,45 @@ export default function ProfileDashboard() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
+
+  // SOP-009 Refund Request State
+  const [refundModalOrder, setRefundModalOrder] = useState<Order | null>(null);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundBankName, setRefundBankName] = useState('Vietcombank');
+  const [refundBankAccount, setRefundBankAccount] = useState('');
+  const [refundBankHolder, setRefundBankHolder] = useState('');
+
+  const submitRefundRequest = async () => {
+    if (!refundModalOrder || !refundReason.trim() || !refundBankAccount.trim() || !refundBankHolder.trim()) {
+      showToast('Vui lòng nhập đầy đủ lý do và thông tin ngân hàng!', 'error');
+      return;
+    }
+    try {
+      setSubmittingAction(true);
+      await returnApi.createReturn({
+        orderId: String(refundModalOrder.id),
+        customerName: fullname || 'Khách hàng',
+        productName: refundModalOrder.items?.[0]?.name || 'Đơn hàng WildStream',
+        variantId: 1,
+        variantSku: 'WS-ORDER-' + refundModalOrder.id,
+        quantity: 1,
+        reason: refundReason.trim(),
+        refundAmount: Number(refundModalOrder.rawTotal || parseInt(refundModalOrder.total?.replace(/\D/g, '') || '0') || 0),
+        bankName: refundBankName,
+        bankAccount: refundBankAccount.trim(),
+        bankHolder: refundBankHolder.trim(),
+      });
+      setRefundModalOrder(null);
+      setRefundReason('');
+      setRefundBankAccount('');
+      setRefundBankHolder('');
+      showToast('Đã gửi yêu cầu đổi trả / hoàn tiền thành công! Admin sẽ xem xét phê duyệt (SOP-009).');
+    } catch (err: any) {
+      showToast(err.message || 'Không thể gửi yêu cầu hoàn tiền', 'error');
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
   // Toast Helper
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -804,6 +844,15 @@ export default function ProfileDashboard() {
                                 </button>
                               </>
                             )}
+                            {(order.rawStatus === 'COMPLETED' || order.rawStatus === 'DELIVERED') && (
+                              <button
+                                type="button"
+                                onClick={() => setRefundModalOrder(order)}
+                                className="px-3 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-md text-label-sm font-semibold flex items-center gap-1 cursor-pointer"
+                              >
+                                Đổi trả / Hoàn tiền (SOP-009)
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="px-4 py-2 border border-outline-variant/60 hover:border-primary hover:bg-primary/5 rounded-md text-label-sm font-semibold text-on-surface-variant hover:text-primary transition-all duration-200"
@@ -1129,6 +1178,92 @@ export default function ProfileDashboard() {
             <div className="mt-4 flex justify-end gap-3">
               <button onClick={() => setReviewItem(null)} className="px-4 py-2 rounded-lg bg-slate-100 font-semibold">Hủy</button>
               <button disabled={submittingAction} onClick={submitReview} className="px-4 py-2 rounded-lg bg-primary disabled:opacity-50 text-white font-semibold">Lưu đánh giá</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {refundModalOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 text-left space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                  Quy trình SOP-009 — Đổi trả & Hoàn tiền
+                </span>
+                <h2 className="text-xl font-black text-on-surface mt-1">Yêu cầu hoàn tiền đơn hàng #{refundModalOrder.id}</h2>
+              </div>
+              <button onClick={() => setRefundModalOrder(null)} className="text-slate-400 hover:text-slate-600"><X /></button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-on-surface mb-1">1. Lý do đổi trả / hoàn tiền <span className="text-red-600">*</span></label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                rows={3}
+                placeholder="Mô tả lý do đổi trả (ví dụ: hàng hư hỏng do vận chuyển, sai sản phẩm...)"
+                className="w-full border border-outline-variant rounded-xl p-3 text-sm focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 space-y-3">
+              <h3 className="text-sm font-bold text-amber-900 flex items-center gap-1.5">
+                2. Thông tin Tài khoản Ngân hàng nhận hoàn tiền (SOP-009)
+              </h3>
+              
+              <div>
+                <label className="block text-xs font-semibold text-amber-800 mb-1">Tên Ngân hàng</label>
+                <select
+                  value={refundBankName}
+                  onChange={(e) => setRefundBankName(e.target.value)}
+                  className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs font-bold text-on-surface"
+                >
+                  <option value="Vietcombank">Vietcombank</option>
+                  <option value="Techcombank">Techcombank</option>
+                  <option value="MB Bank">MB Bank</option>
+                  <option value="ACB">ACB</option>
+                  <option value="VPBank">VPBank</option>
+                  <option value="BIDV">BIDV</option>
+                  <option value="VietinBank">VietinBank</option>
+                  <option value="Agribank">Agribank</option>
+                  <option value="TPBank">TPBank</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-800 mb-1">Số tài khoản <span className="text-red-600">*</span></label>
+                  <input
+                    type="text"
+                    value={refundBankAccount}
+                    onChange={(e) => setRefundBankAccount(e.target.value)}
+                    placeholder="VD: 0071001234567"
+                    className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-amber-800 mb-1">Tên chủ tài khoản <span className="text-red-600">*</span></label>
+                  <input
+                    type="text"
+                    value={refundBankHolder}
+                    onChange={(e) => setRefundBankHolder(e.target.value)}
+                    placeholder="VD: NGUYEN VAN A"
+                    className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs font-bold uppercase"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button onClick={() => setRefundModalOrder(null)} className="px-4 py-2 rounded-xl bg-slate-100 font-bold text-sm">Hủy</button>
+              <button
+                disabled={submittingAction || !refundReason.trim() || !refundBankAccount.trim() || !refundBankHolder.trim()}
+                onClick={submitRefundRequest}
+                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-sm shadow-sm cursor-pointer"
+              >
+                {submittingAction ? 'Đang gửi...' : 'Xác nhận gửi Yêu cầu SOP-009'}
+              </button>
             </div>
           </div>
         </div>

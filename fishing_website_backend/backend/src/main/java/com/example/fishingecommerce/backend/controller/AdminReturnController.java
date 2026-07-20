@@ -41,14 +41,33 @@ public class AdminReturnController {
         return ResponseEntity.status(HttpStatus.CREATED).body(returnService.create(request));
     }
 
+    @PostMapping("/{id}/approve")
+    @Operation(summary = "Approve return request")
+    public ResponseEntity<ReturnActionResponse> approve(@PathVariable String id) {
+        return ResponseEntity.ok(returnService.approve(id));
+    }
+
+    @PostMapping("/{id}/reject")
+    @Operation(summary = "Reject return request")
+    public ResponseEntity<ReturnActionResponse> reject(@PathVariable String id, @RequestBody(required = false) java.util.Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        return ResponseEntity.ok(returnService.reject(id, reason));
+    }
+
+    @PostMapping("/{id}/refund")
+    @Operation(summary = "Confirm bank transfer refund completed (SOP-009)")
+    public ResponseEntity<ReturnActionResponse> refund(@PathVariable String id) {
+        return ResponseEntity.ok(returnService.refund(id));
+    }
+
     @PostMapping("/{id}/restock")
-    @Operation(summary = "Restock return")
+    @Operation(summary = "Restock return (Policy 17.6)")
     public ResponseEntity<ReturnActionResponse> restock(@PathVariable String id) {
         return ResponseEntity.ok(returnService.restock(id));
     }
 
     @PostMapping("/{id}/dispose")
-    @Operation(summary = "Dispose return")
+    @Operation(summary = "Dispose return (Policy 17.6 damaged stock)")
     public ResponseEntity<ReturnActionResponse> dispose(@PathVariable String id) {
         return ResponseEntity.ok(returnService.dispose(id));
     }

@@ -347,15 +347,9 @@ export const adminApi = {
   getOrderById: (id: number | string) => fetchAPI(`/api/v1/admin/orders/${id}`),
   updateProductStatus: (id: number | string, isVisible: boolean) => fetchAPI(`/api/v1/admin/products/${id}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ isVisible }),
   }),
   confirmPayOSWebhook: () => fetchAPI('/api/v1/payments/payos/confirm-webhook', {
     method: 'POST'
-  }),
-  getSuppliers: () => fetchAPI('/api/v1/admin/suppliers'),
-  createSupplier: (body: any) => fetchAPI('/api/v1/admin/suppliers', {
-    method: 'POST',
-    body: JSON.stringify(body),
   }),
   deleteSupplier: (id: string | number) => fetchAPI(`/api/v1/admin/suppliers/${id}`, {
     method: 'DELETE',
@@ -364,6 +358,16 @@ export const adminApi = {
   createReturn: (body: any) => fetchAPI('/api/v1/admin/returns', {
     method: 'POST',
     body: JSON.stringify(body),
+  }),
+  approveReturn: (id: string | number) => fetchAPI(`/api/v1/admin/returns/${id}/approve`, {
+    method: 'POST',
+  }),
+  rejectReturn: (id: string | number, reason?: string) => fetchAPI(`/api/v1/admin/returns/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  }),
+  refundReturn: (id: string | number) => fetchAPI(`/api/v1/admin/returns/${id}/refund`, {
+    method: 'POST',
   }),
   restockReturn: (id: string | number) => fetchAPI(`/api/v1/admin/returns/${id}/restock`, {
     method: 'POST',
@@ -377,11 +381,23 @@ export const adminApi = {
     method: 'POST',
     body: JSON.stringify(body),
   }),
+  getSuppliers: () => fetchAPI('/api/v1/admin/suppliers'),
+  createSupplier: (body: any) => fetchAPI('/api/v1/admin/suppliers', {
+    method: 'POST',
+  }),
   createWarehouseInspection: (body: any) => fetchAPI('/api/v1/admin/warehouse/inspections', {
     method: 'POST',
     body: JSON.stringify(body),
   }),
   getVariantById: (id: string | number) => fetchAPI(`/api/v1/admin/variants/${id}`),
+};
+
+export const returnApi = {
+  getReturns: () => fetchAPI('/api/v1/returns'),
+  createReturn: (body: any) => fetchAPI('/api/v1/returns', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }),
 };
 
 export const shipperApi = {

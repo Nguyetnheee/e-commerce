@@ -28,5 +28,10 @@ public class CreateReturnRequest {
 
     private String reason;
 
+    private java.math.BigDecimal refundAmount;
+    private String bankName;
+    private String bankAccount;
+    private String bankHolder;
+
     private LocalDate date;
 }

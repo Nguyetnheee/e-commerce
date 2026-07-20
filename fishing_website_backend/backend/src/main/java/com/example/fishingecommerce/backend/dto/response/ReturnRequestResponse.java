@@ -18,6 +18,11 @@ public class ReturnRequestResponse {
     private String variantSku;
     private Integer quantity;
     private String reason;
+    private java.math.BigDecimal refundAmount;
+    private String bankName;
+    private String bankAccount;
+    private String bankHolder;
+    private String inspectionNote;
     private LocalDate date;
     private ReturnRequestStatus status;
     private LocalDateTime createdAt;
