@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, User, Menu, X, LogIn, UserPlus, ClipboardList } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, X, LogIn, UserPlus, ClipboardList, Bell } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cartApi, getAuthToken } from '../lib/api';
 
@@ -11,6 +11,38 @@ export default function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState('Sông');
+
+  const [notifications, setNotifications] = useState<any[]>([
+    {
+      id: 1,
+      title: 'Đơn hàng giao thất bại ⚠️',
+      message: 'Đơn hàng #WS-12 giao không thành công. Vui lòng bấm để gửi yêu cầu hoàn tiền chuyển khoản.',
+      link: '/profile?tab=orders',
+      type: 'warning',
+      isUnread: true,
+      time: 'Mới đây'
+    },
+    {
+      id: 2,
+      title: 'Đơn hàng đã được giao 🎉',
+      message: 'Đơn hàng #WS-11 đã giao hàng thành công. Hãy bấm để gửi đánh giá cho sản phẩm nhé!',
+      link: '/profile?tab=orders',
+      type: 'success',
+      isUnread: true,
+      time: '1 giờ trước'
+    },
+    {
+      id: 3,
+      title: 'Chào mừng cần thủ! 🎣',
+      message: 'Chào mừng bạn đến với WildStream Gear! Hãy khám phá các trang bị dã ngoại & câu cá chuyên nghiệp.',
+      link: '/category#camping',
+      type: 'info',
+      isUnread: false,
+      time: '1 ngày trước'
+    }
+  ]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const [cartCount, setCartCount] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -94,6 +126,9 @@ export default function Header() {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -202,7 +237,63 @@ export default function Header() {
             </span>
           </a>
 
-          {isLoggedIn && <div id="notification-bell-slot" className="flex items-center" />}
+          {/* Notification Bell Icon & Dropdown */}
+          <div className="relative flex items-center" ref={notifRef}>
+            <button 
+              type="button"
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className={`p-2 rounded-full hover:bg-surface-container text-on-surface hover:text-primary transition-all duration-200 focus-visible:outline-primary relative group ${isNotifOpen ? 'bg-surface-container text-primary' : ''}`}
+              aria-label="Thông báo"
+            >
+              <Bell className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" />
+              {notifications.some(n => n.isUnread) && (
+                <span className="absolute top-1.5 right-1.5 bg-red-600 w-2 h-2 rounded-full animate-pulse" />
+              )}
+            </button>
+
+            {/* Notifications Dropdown Panel */}
+            {isNotifOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white/95 backdrop-blur-md border border-outline-variant/30 rounded-2xl shadow-xl py-3 z-50 animate-in fade-in slide-in-from-top-1 duration-150 text-left">
+                <div className="px-4 pb-2 border-b border-outline-variant/20 flex justify-between items-center">
+                  <h4 className="text-label-md font-extrabold text-on-surface uppercase tracking-wide">Thông báo</h4>
+                  <button 
+                    onClick={() => {
+                      setNotifications(prev => prev.map(n => ({ ...n, isUnread: false })));
+                    }}
+                    className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                  >
+                    Đánh dấu đã đọc
+                  </button>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto divide-y divide-outline-variant/10">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-label-sm text-on-surface-variant font-medium">
+                      Không có thông báo mới nào
+                    </div>
+                  ) : (
+                    notifications.map(n => (
+                      <a 
+                        key={n.id}
+                        href={n.link}
+                        onClick={() => {
+                          setIsNotifOpen(false);
+                          setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, isUnread: false } : item));
+                        }}
+                        className={`block p-3 hover:bg-slate-50 transition-colors duration-150 ${n.isUnread ? 'bg-blue-50/40' : ''}`}
+                      >
+                        <div className="flex justify-between items-start gap-xs">
+                          <span className="text-xs font-bold text-on-surface">{n.title}</span>
+                          <span className="text-[10px] text-outline whitespace-nowrap">{n.time}</span>
+                        </div>
+                        <p className="text-[11px] text-on-surface-variant leading-relaxed mt-0.5">{n.message}</p>
+                      </a>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* User Icon with Dropdown Menu */}
           <div className="relative flex items-center" ref={userMenuRef}>
