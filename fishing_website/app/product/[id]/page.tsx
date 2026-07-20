@@ -424,9 +424,9 @@ export default function ProductDetailPage() {
                 <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-2xl p-md shadow-sm text-left">
                   {activeTab === 'details' ? (
                     <article className="prose prose-sm text-on-surface-variant max-w-none leading-relaxed space-y-sm">
-                      <p>{dbProduct.description || 'Sản phẩm chưa có mô tả chi tiết.'}</p>
-                      {dbProduct.material && <p><strong>Chất liệu:</strong> {dbProduct.material}</p>}
-                      {dbProduct.action && <p><strong>Thông tin:</strong> {dbProduct.action}</p>}
+                      <p>{dbProduct?.description || 'Sản phẩm chưa có mô tả chi tiết.'}</p>
+                      {dbProduct?.material && <p><strong>Chất liệu:</strong> {dbProduct.material}</p>}
+                      {dbProduct?.action && <p><strong>Thông tin:</strong> {dbProduct.action}</p>}
                     </article>
                   ) : (
                     <div className="space-y-md">
