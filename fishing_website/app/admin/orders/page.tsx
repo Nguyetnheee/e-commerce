@@ -44,6 +44,12 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [approvalOrder, setApprovalOrder] = useState<any | null>(null);
   const [selectedShipperId, setSelectedShipperId] = useState('');
+  const [returnRequests, setReturnRequests] = useState<any[]>([]);
+  const [adminRefundBankName, setAdminRefundBankName] = useState('Vietcombank');
+  const [adminRefundBankAccount, setAdminRefundBankAccount] = useState('');
+  const [adminRefundBankHolder, setAdminRefundBankHolder] = useState('');
+  const [adminRefundReason, setAdminRefundReason] = useState('');
+  const [isCreatingRefund, setIsCreatingRefund] = useState(false);
   
   // Actions loading state
   const [updatingId, setUpdatingId] = useState<number | string | null>(null);
@@ -51,12 +57,19 @@ export default function AdminOrdersPage() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const [data, staff] = await Promise.all([adminApi.getOrders(), adminApi.getAllAdmins()]);
+      const [data, staff, returnsData] = await Promise.all([
+        adminApi.getOrders(),
+        adminApi.getAllAdmins(),
+        adminApi.getReturns().catch(() => [])
+      ]);
       if (Array.isArray(data)) {
         setOrders(data);
       }
       if (Array.isArray(staff)) {
         setShippers(staff.filter((user: any) => user.roles?.includes('SHIPPER') && user.status === 'ACTIVE'));
+      }
+      if (Array.isArray(returnsData)) {
+        setReturnRequests(returnsData);
       }
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -159,6 +172,60 @@ export default function AdminOrdersPage() {
         }
       }
     });
+  };
+
+  const handleAdminCreateRefund = async (order: any) => {
+    if (!adminRefundBankAccount.trim() || !adminRefundBankHolder.trim() || !adminRefundReason.trim()) {
+      alert('Vui lòng điền đầy đủ lý do hoàn tiền và thông tin tài khoản ngân hàng nhận tiền!');
+      return;
+    }
+    try {
+      setIsCreatingRefund(true);
+      const reqBody = {
+        orderId: String(order.id),
+        customerName: order.recipientName || 'Khách hàng',
+        productName: order.items?.[0]?.productName || 'Đơn hàng WildStream',
+        variantId: order.items?.[0]?.variantId || 1,
+        variantSku: order.items?.[0]?.variantSku || 'WS-REFUND-' + order.id,
+        quantity: order.items?.[0]?.quantity || 1,
+        reason: adminRefundReason.trim(),
+        refundAmount: Number(order.totalAmount),
+        bankName: adminRefundBankName,
+        bankAccount: adminRefundBankAccount.trim(),
+        bankHolder: adminRefundBankHolder.trim(),
+      };
+      const newRet = await adminApi.createReturn(reqBody);
+      
+      // Auto approve and refund it
+      await adminApi.approveReturn(newRet.code);
+      await adminApi.refundReturn(newRet.code);
+      
+      alert('Đã lập hồ sơ hoàn tiền (SOP-009) và xác nhận đã chuyển khoản hoàn tiền thành công!');
+      
+      setAdminRefundBankAccount('');
+      setAdminRefundBankHolder('');
+      setAdminRefundReason('');
+      
+      await loadOrders();
+    } catch (err: any) {
+      alert(err.message || 'Không thể tạo hồ sơ hoàn tiền');
+    } finally {
+      setIsCreatingRefund(false);
+    }
+  };
+
+  const handleAdminApproveAndRefund = async (code: string) => {
+    try {
+      setUpdatingId(code);
+      await adminApi.approveReturn(code);
+      await adminApi.refundReturn(code);
+      alert('Đã phê duyệt và xác nhận đã chuyển khoản hoàn tiền thành công!');
+      await loadOrders();
+    } catch (err: any) {
+      alert(err.message || 'Có lỗi xảy ra');
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   // Filter and sort orders (newest first)
@@ -535,6 +602,156 @@ export default function AdminOrdersPage() {
                   </span>
                 </div>
               </div>
+
+              {/* SOP-009 Refund Section for Paid Returned/Cancelled/Failed orders */}
+              {(selectedOrder.status === 'RETURNED' || selectedOrder.status === 'DELIVERY_FAILED' || selectedOrder.status === 'CANCELLED') && selectedOrder.paymentStatus === 'PAID' && (() => {
+                const refundRequest = returnRequests.find(r => String(r.orderId) === String(selectedOrder.id));
+                const formatPrice = (value: number = 0) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+
+                return (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3 text-label-sm text-left">
+                    <h3 className="font-extrabold text-amber-900 border-b border-amber-200 pb-1.5 flex items-center gap-xs">
+                      <DollarSign className="w-4 h-4 text-amber-700" />
+                      <span>QUY TRÌNH HOÀN TIỀN (SOP-009)</span>
+                    </h3>
+
+                    {refundRequest ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Mã yêu cầu hoàn:</span>
+                          <strong className="text-on-surface">{refundRequest.code}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Ngân hàng hoàn trả:</span>
+                          <strong className="text-on-surface">{refundRequest.bankName}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Số tài khoản:</span>
+                          <strong className="text-on-surface font-mono">{refundRequest.bankAccount}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Chủ tài khoản:</span>
+                          <strong className="text-on-surface uppercase">{refundRequest.bankHolder}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Số tiền hoàn trả:</span>
+                          <strong className="text-emerald-700 font-bold">{formatPrice(refundRequest.refundAmount)}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-on-surface-variant">Lý do yêu cầu:</span>
+                          <span className="text-on-surface font-medium">{refundRequest.reason}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-amber-200">
+                          <span className="text-on-surface-variant">Trạng thái hoàn tiền:</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            refundRequest.status === 'REFUNDED' ? 'bg-emerald-100 text-emerald-800' :
+                            refundRequest.status === 'APPROVED' ? 'bg-blue-100 text-blue-800' :
+                            'bg-amber-100 text-amber-800'
+                          }`}>
+                            {refundRequest.status === 'REFUNDED' ? 'Đã hoàn tiền' :
+                             refundRequest.status === 'APPROVED' ? 'Đã duyệt - chờ chuyển khoản' :
+                             'Chờ Admin duyệt'}
+                          </span>
+                        </div>
+
+                        {refundRequest.status !== 'REFUNDED' && (
+                          <div className="pt-2 flex justify-end gap-xs">
+                            {refundRequest.status === 'PENDING_APPROVAL' && (
+                              <button
+                                onClick={() => handleAdminApproveAndRefund(refundRequest.code)}
+                                disabled={updatingId === refundRequest.code}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer border-none"
+                              >
+                                Duyệt & Chuyển khoản hoàn tiền
+                              </button>
+                            )}
+                            {refundRequest.status === 'APPROVED' && (
+                              <button
+                                onClick={() => handleAdminApproveAndRefund(refundRequest.code)}
+                                disabled={updatingId === refundRequest.code}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg shadow-sm cursor-pointer border-none"
+                              >
+                                Xác nhận đã chuyển khoản
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="text-xs text-amber-800 bg-amber-100/50 p-2.5 rounded-xl border border-amber-200">
+                          ⚠️ Đơn hàng này đã thanh toán nhưng chưa lập hồ sơ hoàn tiền. Vui lòng nhập thông tin tài khoản ngân hàng của khách để lập hồ sơ & hoàn tiền.
+                        </div>
+
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-xs font-semibold text-amber-800 mb-1">Tên Ngân hàng nhận hoàn</label>
+                            <select
+                              value={adminRefundBankName}
+                              onChange={(e) => setAdminRefundBankName(e.target.value)}
+                              className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs font-bold"
+                            >
+                              <option value="Vietcombank">Vietcombank</option>
+                              <option value="Techcombank">Techcombank</option>
+                              <option value="MB Bank">MB Bank</option>
+                              <option value="ACB">ACB</option>
+                              <option value="VPBank">VPBank</option>
+                              <option value="BIDV">BIDV</option>
+                              <option value="VietinBank">VietinBank</option>
+                              <option value="Agribank">Agribank</option>
+                              <option value="TPBank">TPBank</option>
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs font-semibold text-amber-800 mb-1">Số tài khoản nhận hoàn *</label>
+                              <input
+                                type="text"
+                                value={adminRefundBankAccount}
+                                onChange={(e) => setAdminRefundBankAccount(e.target.value)}
+                                placeholder="VD: 0071001234567"
+                                className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs font-mono font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-amber-800 mb-1">Tên chủ tài khoản *</label>
+                              <input
+                                type="text"
+                                value={adminRefundBankHolder}
+                                onChange={(e) => setAdminRefundBankHolder(e.target.value)}
+                                placeholder="VD: NGUYEN VAN A"
+                                className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs font-bold uppercase"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-amber-800 mb-1">Lý do hoàn tiền *</label>
+                            <input
+                              type="text"
+                              value={adminRefundReason}
+                              onChange={(e) => setAdminRefundReason(e.target.value)}
+                              placeholder="VD: Khách hoàn trả hàng về kho hoặc giao hàng thất bại"
+                              className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs font-bold"
+                            />
+                          </div>
+
+                          <div className="pt-2 flex justify-end">
+                            <button
+                              onClick={() => handleAdminCreateRefund(selectedOrder)}
+                              disabled={isCreatingRefund || !adminRefundBankAccount.trim() || !adminRefundBankHolder.trim() || !adminRefundReason.trim()}
+                              className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm cursor-pointer border-none"
+                            >
+                              {isCreatingRefund ? 'Đang xử lý...' : 'Lập hồ sơ & Hoàn tiền ngay (SOP-009)'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Actions details inside modal */}
               {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'COMPLETED' && selectedOrder.status !== 'CANCELLED' && selectedOrder.status !== 'RETURNED' && (

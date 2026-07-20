@@ -44,6 +44,8 @@ interface Order {
   date: string;
   total: string;
   rawTotal?: number;
+  paymentStatus?: string;
+  paymentMethod?: string;
   status: string;
   items: OrderItem[];
 }
@@ -139,7 +141,7 @@ export default function ProfileDashboard() {
       setRefundReason('');
       setRefundBankAccount('');
       setRefundBankHolder('');
-      showToast('Đã gửi yêu cầu đổi trả / hoàn tiền thành công! Admin sẽ xem xét phê duyệt (SOP-009).');
+      showToast('Yêu cầu hoàn tiền đã gửi thành công! Tiền sẽ được hoàn trả lại tài khoản của bạn trong vòng từ 24h đến 48h làm việc sau khi Admin duyệt.');
     } catch (err: any) {
       showToast(err.message || 'Không thể gửi yêu cầu hoàn tiền', 'error');
     } finally {
@@ -172,6 +174,8 @@ export default function ProfileDashboard() {
       id: String(ord.id),
       rawStatus: ord.status,
       deliveredAt: ord.deliveredAt,
+      paymentStatus: ord.paymentStatus,
+      paymentMethod: ord.paymentMethod,
       date: ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('vi-VN') : '',
       total: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
         .format(Number(ord.totalAmount || 0)),
@@ -787,6 +791,12 @@ export default function ProfileDashboard() {
                           </div>
                         )}
 
+                        {order.rawStatus === 'DELIVERY_FAILED' && order.paymentStatus === 'PAID' && (
+                          <div className="mx-md mt-md rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 text-left space-y-1">
+                            <strong>⚠️ Giao hàng không thành công:</strong> Do bạn đã thanh toán trước cho đơn hàng này, vui lòng bấm nút <strong>"Yêu cầu hoàn tiền"</strong> bên dưới để gửi thông tin số tài khoản cho Admin duyệt hoàn.
+                          </div>
+                        )}
+
                         <div className="p-md divide-y divide-outline-variant/20">
                           {order.items.map((item) => (
                             <div key={item.id} className="flex gap-sm py-sm first:pt-0 last:pb-0 text-left">
@@ -859,6 +869,15 @@ export default function ProfileDashboard() {
                                 className="px-3 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-md text-label-sm font-semibold flex items-center gap-1 cursor-pointer"
                               >
                                 Đổi trả / Hoàn tiền (SOP-009)
+                              </button>
+                            )}
+                            {order.rawStatus === 'DELIVERY_FAILED' && order.paymentStatus === 'PAID' && (
+                              <button
+                                type="button"
+                                onClick={() => setRefundModalOrder(order)}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-label-sm font-semibold cursor-pointer transition-colors"
+                              >
+                                Yêu cầu hoàn tiền
                               </button>
                             )}
                             <button
@@ -1261,6 +1280,10 @@ export default function ProfileDashboard() {
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 text-left">
+              <strong>* Thời gian xử lý hoàn tiền:</strong> Yêu cầu hoàn tiền sẽ được hệ thống xử lý và chuyển khoản lại vào tài khoản ngân hàng của bạn trong vòng từ <strong>24h đến 48h làm việc</strong> sau khi Admin phê duyệt.
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t">
