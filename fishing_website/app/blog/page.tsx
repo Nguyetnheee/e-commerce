@@ -104,7 +104,7 @@ export default function BlogPage() {
   const exploreProducts: ExploreProduct[] = [
     {
       id: 'exp-prod-river-1',
-      name: 'Cần câu suối Carbon River Master UL',
+      name: 'Cần câu Lure Daiwa Crossfire X 662MB',
       price: '1.250.000₫',
       imageUrl: '/images/product-buggy.png',
       terrain: 'river',
@@ -112,8 +112,8 @@ export default function BlogPage() {
     },
     {
       id: 'exp-prod-river-2',
-      name: 'Abu Garcia Troutin Marquis Nano Stream',
-      price: '3.200.000₫',
+      name: 'Cần câu cá Shimano Cruzar AX 2602',
+      price: '1.450.000₫',
       imageUrl: '/images/product-yellowfish.png',
       terrain: 'river',
       category: 'bestseller'
@@ -1420,9 +1420,10 @@ export default function BlogPage() {
                 <span>{selectedArticle.views} lượt xem</span>
               </div>
 
-              <p className="text-body-md text-on-surface-variant leading-relaxed whitespace-pre-line font-sans">
-                {selectedArticle.content}
-              </p>
+              <div 
+                className="prose max-w-none text-on-surface-variant leading-relaxed text-body-md font-sans space-y-3 [&_h2]:text-headline-sm [&_h2]:font-bold [&_h2]:text-primary [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-body-lg [&_h3]:font-bold [&_h3]:text-on-surface [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1 [&_img]:rounded-xl [&_img]:shadow-sm [&_img]:my-3"
+                dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
+              />
 
               <div className="border-t border-outline-variant/20 pt-md mt-md space-y-sm">
                 <h4 className="text-label-md font-bold text-primary uppercase tracking-wider">

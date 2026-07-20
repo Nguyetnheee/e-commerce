@@ -12,5 +12,11 @@ public class PostRequest {
 
     private String author;
 
+    private String imageUrl;
+
+    private String categoryName;
+
+    private String terrain;
+
     private Boolean isVisible;
 }

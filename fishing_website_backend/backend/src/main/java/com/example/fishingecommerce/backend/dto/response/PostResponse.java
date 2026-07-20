@@ -13,6 +13,9 @@ public class PostResponse {
     private String slug;
     private String htmlContent;
     private String author;
+    private String imageUrl;
+    private String categoryName;
+    private String terrain;
     private Boolean isVisible;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

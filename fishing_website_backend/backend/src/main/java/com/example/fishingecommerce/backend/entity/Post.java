@@ -30,6 +30,15 @@ public class Post {
     @Column(name = "Author")
     private String author;
 
+    @Column(name = "ImageUrl")
+    private String imageUrl;
+
+    @Column(name = "CategoryName")
+    private String categoryName;
+
+    @Column(name = "Terrain")
+    private String terrain;
+
     @Column(name = "IsVisible")
     @Builder.Default
     private Boolean isVisible = true;
