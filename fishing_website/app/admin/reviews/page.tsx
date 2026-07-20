@@ -46,7 +46,16 @@ export default function AdminReviewsPage() {
                     <td className="p-4"><div className="font-semibold">{review.userName}</div><div className="text-xs text-slate-400">User #{review.userId}</div></td>
                     <td className="p-4">Sản phẩm #{review.productId}</td>
                     <td className="p-4"><span className="inline-flex items-center gap-1 font-bold text-amber-600"><Star className="w-4 h-4 fill-current" />{review.rating}/5</span></td>
-                    <td className="p-4 max-w-md whitespace-pre-wrap">{review.text || 'Không có bình luận'}</td>
+                    <td className="p-4 max-w-md">
+                      <div className="whitespace-pre-wrap">{review.text || 'Không có bình luận'}</div>
+                      {review.images && review.images.length > 0 && (
+                        <div className="flex gap-1.5 mt-2">
+                          {review.images.map((img: string, idx: number) => (
+                            <img key={idx} src={img} alt="Review attachment" className="w-12 h-12 object-cover rounded-lg border shadow-xs" />
+                          ))}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-4 text-sm text-slate-500">{review.createdAt ? new Date(review.createdAt).toLocaleString('vi-VN') : ''}</td>
                   </tr>
                 ))}

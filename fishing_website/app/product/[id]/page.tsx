@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Header from '../../../components/Header';
 import ProductCard from '../../../components/ProductCard';
 import Footer from '../../../components/Footer';
-import { Star, Heart, ShoppingCart, ShieldCheck, Compass, Info, ArrowLeft, ArrowRight, Share2, Edit2, Trash2 } from 'lucide-react';
+import { Star, Heart, ShoppingCart, ShieldCheck, Compass, Info, ArrowLeft, ArrowRight, Share2, Edit2, Trash2, X } from 'lucide-react';
 import { reviewApi, cartApi, productApi, getAuthToken } from '../../../lib/api';
 
 export default function ProductDetailPage() {
@@ -104,6 +104,7 @@ export default function ProductDetailPage() {
   const [editingReview, setEditingReview] = useState<any>(null);
   const [editRating, setEditRating] = useState(5);
   const [editText, setEditText] = useState('');
+  const [editImages, setEditImages] = useState<string[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
 
   const loadReviews = async () => {
@@ -141,9 +142,10 @@ export default function ProductDetailPage() {
         productId: editingReview.productId,
         rating: editRating,
         text: editText.trim(),
-        images: editingReview.images || [],
+        images: editImages,
       });
       setEditingReview(null);
+      setEditImages([]);
       await loadReviews();
     } catch (error: any) {
       alert(error.message || 'Không thể sửa đánh giá');
@@ -451,10 +453,17 @@ export default function ProductDetailPage() {
                                 ))}
                               </div>
                               <p className="text-[13px] text-on-surface-variant">{rev.text}</p>
+                              {rev.images && rev.images.length > 0 && (
+                                <div className="flex gap-1.5 mt-2">
+                                  {rev.images.map((img: string, idx: number) => (
+                                    <img key={idx} src={img} alt="Ảnh thực tế sản phẩm" className="w-16 h-16 object-cover rounded-lg border shadow-xs" />
+                                  ))}
+                                </div>
+                              )}
                               {myReviewIds.has(Number(rev.id)) && (
                                 <div className="flex gap-2 mt-2">
                                   <button
-                                    onClick={() => { setEditingReview(rev); setEditRating(rev.rating); setEditText(rev.text || ''); }}
+                                    onClick={() => { setEditingReview(rev); setEditRating(rev.rating); setEditText(rev.text || ''); setEditImages(rev.images || []); }}
                                     className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                                   >
                                     <Edit2 className="w-3.5 h-3.5" /> Sửa
@@ -562,10 +571,57 @@ export default function ProductDetailPage() {
                 </button>
               ))}
             </div>
-            <textarea value={editText} onChange={(event) => setEditText(event.target.value)} rows={4} className="w-full border rounded-xl p-3" />
+            <textarea value={editText} onChange={(event) => setEditText(event.target.value)} rows={4} className="w-full border rounded-xl p-3 text-sm focus:outline-none focus:border-primary" />
+            
+            {/* Real Review Image Edit */}
+            <div className="my-4 text-left">
+              <label className="block text-xs font-bold text-on-surface-variant mb-1">Hình ảnh thực tế (Tối đa 3 ảnh)</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (files) {
+                    const fileList = Array.from(files).slice(0, 3);
+                    const base64Promises = fileList.map(file => {
+                      return new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          resolve(event.target?.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      });
+                    });
+                    Promise.all(base64Promises).then(results => {
+                      setEditImages(results);
+                    });
+                  }
+                }}
+                className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+              />
+              
+              {editImages.length > 0 && (
+                <div className="flex gap-2 mt-3">
+                  {editImages.map((img, index) => (
+                    <div key={index} className="relative w-16 h-16 border rounded-lg overflow-hidden group shadow-xs">
+                      <img src={img} alt="review preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setEditImages(prev => prev.filter((_, idx) => idx !== index))}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-150 border-none cursor-pointer"
+                      >
+                        <X className="w-4 h-4 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-4 flex justify-end gap-3">
-              <button onClick={() => setEditingReview(null)} className="px-4 py-2 bg-slate-100 rounded-lg font-semibold">Hủy</button>
-              <button onClick={saveReviewEdit} className="px-4 py-2 bg-primary text-white rounded-lg font-semibold">Lưu thay đổi</button>
+              <button onClick={() => { setEditingReview(null); setEditImages([]); }} className="px-4 py-2 bg-slate-100 rounded-lg font-semibold cursor-pointer">Hủy</button>
+              <button onClick={saveReviewEdit} className="px-4 py-2 bg-primary text-white rounded-lg font-semibold cursor-pointer border-none">Lưu thay đổi</button>
             </div>
           </div>
         </div>

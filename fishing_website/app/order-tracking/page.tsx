@@ -68,6 +68,40 @@ export default function OrderTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [deliveryActionOrder, setDeliveryActionOrder] = useState<CustomerOrder | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [submittingAction, setSubmittingAction] = useState(false);
+
+  const confirmReceived = async (order: CustomerOrder) => {
+    const yes = window.confirm(`Bạn có chắc chắn xác nhận đã nhận hàng cho đơn #${order.orderCode}?`);
+    if (!yes) return;
+    try {
+      setSubmittingAction(true);
+      await orderApi.confirmReceived(order.id);
+      alert('Đã xác nhận nhận hàng thành công! Vui lòng viết đánh giá cho các sản phẩm.');
+      router.push('/profile?tab=orders');
+    } catch (err: any) {
+      alert(err.message || 'Có lỗi xảy ra');
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const reportNotReceived = async () => {
+    if (!deliveryActionOrder || !reportReason.trim()) return;
+    try {
+      setSubmittingAction(true);
+      await orderApi.reportNotReceived(deliveryActionOrder.id, reportReason.trim());
+      alert('Báo cáo chưa nhận được hàng đã gửi lên hệ thống. Ban quản trị sẽ hỗ trợ bạn sớm.');
+      setDeliveryActionOrder(null);
+      setReportReason('');
+      loadOrders();
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi gửi báo cáo');
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
   const loadOrders = useCallback(() => {
     if (!getAuthToken()) {
@@ -262,6 +296,29 @@ export default function OrderTrackingPage() {
                           <span className="font-bold">Tổng thanh toán</span>
                           <span className="text-headline-md font-extrabold text-primary">{formatPrice(order.totalAmount)}</span>
                         </div>
+
+                        {order.status === 'DELIVERED' && (
+                          <div className="flex justify-end gap-xs border-t border-outline-variant/10 pt-sm mt-sm">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeliveryActionOrder(order);
+                                setReportReason('');
+                              }}
+                              className="px-3 py-1.5 border border-red-300 text-red-700 hover:bg-red-50 rounded-lg text-xs font-semibold cursor-pointer"
+                            >
+                              Tôi chưa nhận được hàng
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmReceived(order)}
+                              disabled={submittingAction}
+                              className="px-3 py-1.5 bg-[#1f6c3a] hover:bg-[#2c7d48] text-white rounded-lg text-xs font-semibold cursor-pointer border-none"
+                            >
+                              Đã nhận được hàng
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -270,6 +327,28 @@ export default function OrderTrackingPage() {
             })}
           </div>
         )}
+      {deliveryActionOrder && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 text-left">
+            <h2 className="text-xl font-bold text-on-surface">Báo cáo chưa nhận được hàng</h2>
+            <p className="mt-2 text-sm text-on-surface-variant">
+              Đơn #{deliveryActionOrder.orderCode} đã được shipper đánh dấu đã giao. Báo cáo này sẽ chuyển đơn sang trạng thái chờ Admin xử lý.
+            </p>
+            <textarea
+              value={reportReason}
+              onChange={(event) => setReportReason(event.target.value)}
+              maxLength={1000}
+              rows={4}
+              placeholder="Ví dụ: Tôi chưa nhận được kiện hàng, shipper chưa liên hệ..."
+              className="mt-4 w-full border border-outline-variant rounded-xl p-3 focus:outline-none focus:border-primary text-sm"
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button onClick={() => setDeliveryActionOrder(null)} className="px-4 py-2 rounded-lg bg-slate-100 font-semibold text-xs cursor-pointer">Hủy</button>
+              <button disabled={submittingAction || !reportReason.trim()} onClick={reportNotReceived} className="px-4 py-2 rounded-lg bg-red-600 disabled:opacity-50 text-white font-semibold text-xs cursor-pointer border-none">Gửi báo cáo</button>
+            </div>
+          </div>
+        </div>
+      )}
       </main>
 
       <Footer />

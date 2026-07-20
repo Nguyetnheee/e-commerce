@@ -61,7 +61,7 @@ interface Address {
 
 export default function ProfileDashboard() {
   // Tab states: 'account' | 'orders' | 'addresses'
-  const [activeTab, setActiveTab] = useState<'account' | 'orders' | 'addresses'>('account');
+  const [activeTab, setActiveTab] = useState<'account' | 'orders' | 'addresses' | 'my-reviews'>('account');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
@@ -108,6 +108,10 @@ export default function ProfileDashboard() {
   const [reviewItem, setReviewItem] = useState<{ order: Order; item: OrderItem } | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [editingReview, setEditingReview] = useState<any | null>(null);
+  const [myReviews, setMyReviews] = useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
   const [submittingAction, setSubmittingAction] = useState(false);
 
   // SOP-009 Refund Request State
@@ -191,6 +195,24 @@ export default function ProfileDashboard() {
       })),
     })));
   };
+
+  const loadMyReviews = async () => {
+    try {
+      setLoadingReviews(true);
+      const data = await reviewApi.getMyReviews();
+      setMyReviews(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error('Error loading my reviews:', err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'my-reviews') {
+      loadMyReviews();
+    }
+  }, [activeTab]);
 
   // Load data from APIs on mount
   useEffect(() => {
@@ -319,16 +341,32 @@ export default function ProfileDashboard() {
     if (!reviewItem) return;
     try {
       setSubmittingAction(true);
-      await reviewApi.createReview({
-        orderId: Number(reviewItem.order.id),
-        productId: reviewItem.item.productId,
+      const reqBody = {
+        orderId: Number(reviewItem.order.id) || 0,
+        productId: Number(reviewItem.item.productId),
         rating: reviewRating,
         text: reviewText.trim(),
-      });
+        images: reviewImages,
+      };
+
+      if (editingReview) {
+        await reviewApi.updateReview(editingReview.id, reqBody);
+        showToast('Cập nhật đánh giá thành công!');
+      } else {
+        await reviewApi.createReview(reqBody);
+        showToast('Đánh giá của bạn đã được lưu thành công!');
+      }
+      
       setReviewItem(null);
       setReviewText('');
       setReviewRating(5);
-      showToast('Đánh giá của bạn đã được lưu');
+      setReviewImages([]);
+      setEditingReview(null);
+      
+      await reloadOrders();
+      if (activeTab === 'my-reviews') {
+        await loadMyReviews();
+      }
     } catch (error: any) {
       showToast(error.message || 'Không thể lưu đánh giá', 'error');
     } finally {
@@ -534,6 +572,19 @@ export default function ProfileDashboard() {
                 >
                   <MapPin className={`w-5 h-5 ${activeTab === 'addresses' ? 'text-primary' : 'text-outline'}`} />
                   <span className="text-left">Sổ địa chỉ</span>
+                </button>
+
+                {/* Tab: Đánh giá của tôi */}
+                <button
+                  onClick={() => { setActiveTab('my-reviews'); setShowAddressForm(false); }}
+                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${
+                    activeTab === 'my-reviews'
+                      ? 'bg-primary/5 text-primary font-bold'
+                      : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+                  }`}
+                >
+                  <Star className={`w-5 h-5 ${activeTab === 'my-reviews' ? 'text-primary' : 'text-outline'}`} />
+                  <span className="text-left">Đánh giá của tôi</span>
                 </button>
 
 
@@ -1150,6 +1201,87 @@ export default function ProfileDashboard() {
                 </div>
               )}
 
+              {activeTab === 'my-reviews' && (
+                <div className="bg-surface-container-lowest border border-outline-variant/15 rounded-3xl p-6 md:p-8 space-y-6 text-left shadow-sm">
+                  <div>
+                    <h2 className="text-headline-sm font-black text-on-surface">Đánh giá của tôi</h2>
+                    <p className="text-body-sm text-on-surface-variant mt-1">Xem, chỉnh sửa hoặc xóa các đánh giá sản phẩm của bạn.</p>
+                  </div>
+
+                  {loadingReviews ? (
+                    <p className="text-sm text-on-surface-variant animate-pulse">Đang tải danh sách đánh giá...</p>
+                  ) : myReviews.length === 0 ? (
+                    <p className="text-sm text-on-surface-variant">Bạn chưa gửi đánh giá nào.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {myReviews.map((rev) => (
+                        <div key={rev.id} className="border border-outline-variant/20 rounded-2xl p-4 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-bold text-on-surface">Sản phẩm #{rev.productId}</h4>
+                              <div className="flex text-amber-500 my-1">
+                                {Array.from({ length: rev.rating || 5 }).map((_, i) => (
+                                  <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                                ))}
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-outline">
+                              {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('vi-VN') : ''}
+                            </span>
+                          </div>
+                          <p className="text-xs text-on-surface-variant">{rev.text}</p>
+                          {rev.images && rev.images.length > 0 && (
+                            <div className="flex gap-1.5 mt-2">
+                              {rev.images.map((img: string, idx: number) => (
+                                <img key={idx} src={img} alt="review" className="w-14 h-14 object-cover rounded-lg border shadow-xs" />
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex gap-2 pt-2 border-t border-slate-100 mt-2 justify-end">
+                            <button
+                              onClick={() => {
+                                const item = {
+                                  id: String(rev.id),
+                                  productId: rev.productId,
+                                  name: `Sản phẩm #${rev.productId}`
+                                };
+                                const order = {
+                                  id: String(rev.orderId || '')
+                                };
+                                setEditingReview(rev);
+                                setReviewRating(rev.rating);
+                                setReviewText(rev.text || '');
+                                setReviewImages(rev.images || []);
+                                setReviewItem({ order: order as any, item: item as any });
+                              }}
+                              className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              Sửa
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (window.confirm('Bạn có chắc chắn muốn xóa đánh giá này?')) {
+                                  try {
+                                    await reviewApi.deleteReview(rev.id);
+                                    showToast('Xóa đánh giá thành công!');
+                                    loadMyReviews();
+                                  } catch (error: any) {
+                                    showToast(error.message || 'Lỗi khi xóa đánh giá', 'error');
+                                  }
+                                }
+                              }}
+                              className="text-xs font-bold text-red-600 hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              Xóa
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
 
 
             </div>
@@ -1202,9 +1334,65 @@ export default function ProfileDashboard() {
               placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."
               className="w-full border border-outline-variant rounded-xl p-3 focus:outline-none focus:border-primary"
             />
+
+            {/* Real Review Image Upload */}
+            <div className="my-4 text-left">
+              <label className="block text-xs font-bold text-on-surface-variant mb-1">Hình ảnh thực tế (Tối đa 3 ảnh)</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (files) {
+                    const fileList = Array.from(files).slice(0, 3);
+                    const base64Promises = fileList.map(file => {
+                      return new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          resolve(event.target?.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      });
+                    });
+                    Promise.all(base64Promises).then(results => {
+                      setReviewImages(results);
+                    });
+                  }
+                }}
+                className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+              />
+              
+              {reviewImages.length > 0 && (
+                <div className="flex gap-2 mt-3">
+                  {reviewImages.map((img, index) => (
+                    <div key={index} className="relative w-16 h-16 border rounded-lg overflow-hidden group shadow-xs">
+                      <img src={img} alt="review preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setReviewImages(prev => prev.filter((_, idx) => idx !== index))}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-150 border-none cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-4 flex justify-end gap-3">
-              <button onClick={() => setReviewItem(null)} className="px-4 py-2 rounded-lg bg-slate-100 font-semibold">Hủy</button>
-              <button disabled={submittingAction} onClick={submitReview} className="px-4 py-2 rounded-lg bg-primary disabled:opacity-50 text-white font-semibold">Lưu đánh giá</button>
+              <button 
+                onClick={() => {
+                  setReviewItem(null);
+                  setEditingReview(null);
+                  setReviewImages([]);
+                }} 
+                className="px-4 py-2 rounded-lg bg-slate-100 font-semibold cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button disabled={submittingAction} onClick={submitReview} className="px-4 py-2 rounded-lg bg-primary disabled:opacity-50 text-white font-semibold cursor-pointer border-none">Lưu đánh giá</button>
             </div>
           </div>
         </div>
