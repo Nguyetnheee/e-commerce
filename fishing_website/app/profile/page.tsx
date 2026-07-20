@@ -229,7 +229,16 @@ export default function ProfileDashboard() {
       await reloadOrders();
       showToast('Đơn hàng đã hoàn thành. Bạn có thể đánh giá từng sản phẩm.');
     } catch (error: any) {
-      showToast(error.message || 'Không thể xác nhận nhận hàng', 'error');
+      // The two-hour auto-confirm job may complete the order between page load
+      // and this click. Refresh first so the UI never keeps a stale action button.
+      await reloadOrders().catch(() => undefined);
+      const message = String(error?.message || '');
+      if (message.includes('Chỉ có thể xác nhận đơn đang chờ khách hàng nhận hàng')) {
+        setDeliveryActionOrder(null);
+        showToast('Đơn hàng này đã được hệ thống cập nhật hoàn thành.', 'info');
+      } else {
+        showToast(message || 'Không thể xác nhận nhận hàng', 'error');
+      }
     } finally {
       setSubmittingAction(false);
     }
