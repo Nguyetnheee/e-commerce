@@ -33,6 +33,12 @@ public class InventoryController {
         return ResponseEntity.ok(inventoryService.findOutOfStockAlerts());
     }
 
+    @GetMapping("/items")
+    @Operation(summary = "Lấy toàn bộ sản phẩm kho", description = "Lấy danh sách tất cả các sản phẩm và biến thể đang có trong cơ sở dữ liệu")
+    public ResponseEntity<List<VariantResponse>> getAllInventoryItems() {
+        return ResponseEntity.ok(inventoryService.findAllItems());
+    }
+
     @GetMapping("/dashboard")
     @Operation(summary = "Số liệu dashboard kho", description = "Tổng hợp trực tiếp tồn kho, cảnh báo, đơn đóng gói và phiếu nhập trong DB")
     public ResponseEntity<InventoryDashboardResponse> getDashboardSummary() {

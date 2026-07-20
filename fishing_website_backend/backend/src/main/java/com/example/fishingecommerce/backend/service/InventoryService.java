@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface InventoryService {
     List<VariantResponse> findOutOfStockAlerts();
+    List<VariantResponse> findAllItems();
     InventoryDashboardResponse getDashboardSummary();
     List<InventoryLogResponse> findLogs(Long variantId, LocalDateTime from, LocalDateTime to);
 }

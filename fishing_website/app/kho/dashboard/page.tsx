@@ -88,20 +88,35 @@ export default function KhoDashboardPage() {
     }
 
     try {
-      const alerts = await adminApi.getOutOfStockAlerts();
-      if (Array.isArray(alerts)) {
-        setProducts(alerts.map((v: any) => ({
+      const items = await adminApi.getAllInventoryItems();
+      if (Array.isArray(items) && items.length > 0) {
+        setProducts(items.map((v: any) => ({
           id: v.variantId || v.id,
           sku: v.sku || `VAR-${v.id}`,
-          name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Lựa chọn sản phẩm #${v.id}`,
+          name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Sản phẩm #${v.id}`,
           stock: Number(v.stockQuantity || 0),
-          min: warehouseStats.lowStockThreshold,
-          shelf: 'Chưa cập nhật',
-          status: Number(v.stockQuantity || 0) === 0 ? 'Hết hàng' : 'Sắp hết'
+          price: Number(v.price || 0),
+          min: warehouseStats.lowStockThreshold || 5,
+          shelf: 'Kệ A-01',
+          status: Number(v.stockQuantity || 0) === 0 ? 'Hết hàng' : Number(v.stockQuantity || 0) <= (warehouseStats.lowStockThreshold || 5) ? 'Sắp hết' : 'Bình thường'
         })));
+      } else {
+        const alerts = await adminApi.getOutOfStockAlerts();
+        if (Array.isArray(alerts)) {
+          setProducts(alerts.map((v: any) => ({
+            id: v.variantId || v.id,
+            sku: v.sku || `VAR-${v.id}`,
+            name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Lựa chọn sản phẩm #${v.id}`,
+            stock: Number(v.stockQuantity || 0),
+            price: Number(v.price || 0),
+            min: warehouseStats.lowStockThreshold || 5,
+            shelf: 'Chưa cập nhật',
+            status: Number(v.stockQuantity || 0) === 0 ? 'Hết hàng' : 'Sắp hết'
+          })));
+        }
       }
     } catch (e) {
-      console.error('Không thể tải cảnh báo tồn kho:', e);
+      console.error('Không thể tải danh sách sản phẩm tồn kho từ CSDL:', e);
     }
 
     try {
@@ -949,14 +964,14 @@ export default function KhoDashboardPage() {
                                   required
                                   className="w-full p-1.5 bg-[#f8f9fa] border border-outline-variant/30 rounded-lg focus:outline-none focus:border-secondary font-semibold text-body-sm"
                                 >
-                                  <option value="">-- Chọn sản phẩm --</option>
+                                  <option value="">-- Chọn sản phẩm từ CSDL --</option>
                                   {products.map(p => (
                                     <option key={p.sku} value={p.sku}>
-                                      {p.name} ({p.sku})
+                                      {p.name} ({p.sku}) — Tồn: {p.stock}
                                     </option>
                                   ))}
                                   <option value="NEW_PRODUCT" className="text-secondary font-bold">
-                                    + [Sản phẩm mới chưa có]
+                                    + [Thêm mã SKU mới]
                                   </option>
                                 </select>
                               ) : (

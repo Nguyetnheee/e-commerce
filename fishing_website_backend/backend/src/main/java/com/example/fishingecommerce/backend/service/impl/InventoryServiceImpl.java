@@ -38,6 +38,13 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    public List<VariantResponse> findAllItems() {
+        return variantRepository.findAll().stream()
+                .map(ProductVariantServiceImpl::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public InventoryDashboardResponse getDashboardSummary() {
         List<ProductVariant> variants = variantRepository.findAll();
         long totalStock = variants.stream()

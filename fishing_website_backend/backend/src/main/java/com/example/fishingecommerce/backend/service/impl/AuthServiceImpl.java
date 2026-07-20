@@ -175,7 +175,7 @@ public class AuthServiceImpl implements AuthService {
 
         UserRole primaryRole = switch (requestedRole) {
             case "ADMIN" -> UserRole.ADMIN;
-            case "MANAGER", "APPROVER" -> UserRole.MANAGER;
+            case "MANAGER", "APPROVER", "KHO" -> UserRole.MANAGER;
             case "SHIPPER" -> UserRole.SHIPPER;
             default -> throw new AppException(HttpStatus.BAD_REQUEST, "Role khong hop le");
         };

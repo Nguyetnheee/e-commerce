@@ -282,6 +282,7 @@ export const adminApi = {
     method: 'DELETE',
   }),
   getOutOfStockAlerts: () => fetchAPI('/api/v1/inventory/alerts/out-of-stock'),
+  getAllInventoryItems: () => fetchAPI('/api/v1/inventory/items'),
   getInventoryDashboard: () => fetchAPI('/api/v1/inventory/dashboard'),
   getInventoryLogs: (params?: { variantId?: number | string; fromDate?: string; toDate?: string }) => {
     let url = '/api/v1/inventory/logs';
