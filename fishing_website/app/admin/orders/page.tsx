@@ -1,20 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  ShoppingBag, 
-  User, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  ShieldCheck, 
-  X, 
-  Check, 
-  Truck, 
-  AlertCircle, 
-  DollarSign, 
-  CreditCard 
+import {
+  Search,
+  ShoppingBag,
+  User,
+  Phone,
+  MapPin,
+  Calendar,
+  ShieldCheck,
+  X,
+  Check,
+  Truck,
+  AlertCircle,
+  DollarSign,
+  CreditCard
 } from 'lucide-react';
 import { adminApi } from '../../../lib/api';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -37,7 +37,7 @@ export default function AdminOrdersPage() {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   // Detail Modal
@@ -50,7 +50,7 @@ export default function AdminOrdersPage() {
   const [adminRefundBankHolder, setAdminRefundBankHolder] = useState('');
   const [adminRefundReason, setAdminRefundReason] = useState('');
   const [isCreatingRefund, setIsCreatingRefund] = useState(false);
-  
+
   // Actions loading state
   const [updatingId, setUpdatingId] = useState<number | string | null>(null);
 
@@ -93,7 +93,7 @@ export default function AdminOrdersPage() {
       return;
     }
 
-    const confirmMsg = newStatus === 'PACKING' 
+    const confirmMsg = newStatus === 'PACKING'
       ? `Xác nhận phê duyệt đơn hàng #${orderId} và chuyển trạng thái đóng gói (PACKING)?`
       : newStatus === 'SHIPPING'
         ? `Xác nhận chuyển giao đơn hàng #${orderId} cho đơn vị vận chuyển (SHIPPING)?`
@@ -195,17 +195,17 @@ export default function AdminOrdersPage() {
         bankHolder: adminRefundBankHolder.trim(),
       };
       const newRet = await adminApi.createReturn(reqBody);
-      
+
       // Auto approve and refund it
       await adminApi.approveReturn(newRet.code);
       await adminApi.refundReturn(newRet.code);
-      
-      alert('Đã lập hồ sơ hoàn tiền (SOP-009) và xác nhận đã chuyển khoản hoàn tiền thành công!');
-      
+
+      alert('Đã lập hồ sơ hoàn tiền và xác nhận đã chuyển khoản hoàn tiền thành công!');
+
       setAdminRefundBankAccount('');
       setAdminRefundBankHolder('');
       setAdminRefundReason('');
-      
+
       await loadOrders();
     } catch (err: any) {
       alert(err.message || 'Không thể tạo hồ sơ hoàn tiền');
@@ -230,11 +230,11 @@ export default function AdminOrdersPage() {
 
   // Filter and sort orders (newest first)
   const filteredOrders = orders.filter((o) => {
-    const matchesSearch = 
+    const matchesSearch =
       String(o.id).includes(searchQuery) ||
       (o.recipientName && o.recipientName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (o.recipientPhone && o.recipientPhone.includes(searchQuery));
-    
+
     if (selectedStatus === 'ALL') return matchesSearch;
     return o.status === selectedStatus && matchesSearch;
   }).sort((a, b) => {
@@ -286,7 +286,7 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-md">
-      
+
       {/* HEADER SECTION */}
       <div>
         <span className="text-label-sm text-secondary uppercase font-semibold tracking-wider block mb-1">
@@ -366,8 +366,8 @@ export default function AdminOrdersPage() {
               </thead>
               <tbody className="divide-y divide-outline-variant/10 text-body-sm text-on-surface-variant">
                 {filteredOrders.map((order) => (
-                  <tr 
-                    key={order.id} 
+                  <tr
+                    key={order.id}
                     className="hover:bg-slate-50/50 transition-colors cursor-pointer"
                     onClick={() => setSelectedOrder(order)}
                   >
@@ -388,13 +388,12 @@ export default function AdminOrdersPage() {
                       {order.paymentMethod === 'PAYOS' ? 'PayOS' : 'COD'}
                     </td>
                     <td className="py-4 px-md">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${
-                        order.paymentStatus === 'PAID'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : order.paymentStatus === 'FAILED' || order.paymentStatus === 'CANCELLED'
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}>
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${order.paymentStatus === 'PAID'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : order.paymentStatus === 'FAILED' || order.paymentStatus === 'CANCELLED'
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
                         {order.paymentStatus === 'PAID' ? 'ĐÃ THANH TOÁN' : order.paymentStatus === 'PENDING' ? 'CHƯA THANH TOÁN' : 'THANH TOÁN LỖI/HỦY'}
                       </span>
                     </td>
@@ -563,7 +562,7 @@ export default function AdminOrdersPage() {
                   <ShoppingBag className="w-4 h-4 text-primary" />
                   <span>Danh sách sản phẩm mua</span>
                 </h3>
-                
+
                 <div className="border border-outline-variant/20 rounded-2xl overflow-hidden divide-y divide-outline-variant/10 text-body-sm bg-white">
                   {selectedOrder.items && selectedOrder.items.map((item: any, idx: number) => (
                     <div key={idx} className="p-sm flex justify-between items-center text-left">
@@ -612,7 +611,7 @@ export default function AdminOrdersPage() {
                   <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3 text-label-sm text-left">
                     <h3 className="font-extrabold text-amber-900 border-b border-amber-200 pb-1.5 flex items-center gap-xs">
                       <DollarSign className="w-4 h-4 text-amber-700" />
-                      <span>QUY TRÌNH HOÀN TIỀN (SOP-009)</span>
+                      <span>QUY TRÌNH HOÀN TIỀN</span>
                     </h3>
 
                     {refundRequest ? (
@@ -643,14 +642,13 @@ export default function AdminOrdersPage() {
                         </div>
                         <div className="flex justify-between items-center pt-2 border-t border-amber-200">
                           <span className="text-on-surface-variant">Trạng thái hoàn tiền:</span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            refundRequest.status === 'REFUNDED' ? 'bg-emerald-100 text-emerald-800' :
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${refundRequest.status === 'REFUNDED' ? 'bg-emerald-100 text-emerald-800' :
                             refundRequest.status === 'APPROVED' ? 'bg-blue-100 text-blue-800' :
-                            'bg-amber-100 text-amber-800'
-                          }`}>
+                              'bg-amber-100 text-amber-800'
+                            }`}>
                             {refundRequest.status === 'REFUNDED' ? 'Đã hoàn tiền' :
-                             refundRequest.status === 'APPROVED' ? 'Đã duyệt - chờ chuyển khoản' :
-                             'Chờ Admin duyệt'}
+                              refundRequest.status === 'APPROVED' ? 'Đã duyệt - chờ chuyển khoản' :
+                                'Chờ Admin duyệt'}
                           </span>
                         </div>
 
@@ -680,7 +678,7 @@ export default function AdminOrdersPage() {
                     ) : (
                       <div className="space-y-3">
                         <div className="text-xs text-amber-800 bg-amber-100/50 p-2.5 rounded-xl border border-amber-200">
-                          ⚠️ Đơn hàng này đã thanh toán nhưng chưa lập hồ sơ hoàn tiền. Vui lòng nhập thông tin tài khoản ngân hàng của khách để lập hồ sơ & hoàn tiền.
+                          Đơn hàng này đã thanh toán nhưng chưa lập hồ sơ hoàn tiền. Vui lòng nhập thông tin tài khoản ngân hàng của khách để lập hồ sơ & hoàn tiền.
                         </div>
 
                         <div className="space-y-2">

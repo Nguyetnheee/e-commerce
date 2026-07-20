@@ -356,13 +356,13 @@ export default function ProfileDashboard() {
         await reviewApi.createReview(reqBody);
         showToast('Đánh giá của bạn đã được lưu thành công!');
       }
-      
+
       setReviewItem(null);
       setReviewText('');
       setReviewRating(5);
       setReviewImages([]);
       setEditingReview(null);
-      
+
       await reloadOrders();
       if (activeTab === 'my-reviews') {
         await loadMyReviews();
@@ -473,11 +473,10 @@ export default function ProfileDashboard() {
       {/* Toast Alert */}
       {toast && (
         <div className="fixed top-24 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className={`flex items-center gap-xs px-md py-sm rounded-xl shadow-lg border text-label-md font-semibold ${
-            toast.type === 'success' ? 'bg-[#e6f4ea] text-[#137333] border-[#a8dab5]' :
+          <div className={`flex items-center gap-xs px-md py-sm rounded-xl shadow-lg border text-label-md font-semibold ${toast.type === 'success' ? 'bg-[#e6f4ea] text-[#137333] border-[#a8dab5]' :
             toast.type === 'error' ? 'bg-[#fce8e6] text-[#c5221f] border-[#f5b4ad]' :
-            'bg-surface-tint/10 text-primary border-primary/20'
-          }`}>
+              'bg-surface-tint/10 text-primary border-primary/20'
+            }`}>
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
             <span>{toast.message}</span>
           </div>
@@ -489,21 +488,21 @@ export default function ProfileDashboard() {
 
       {/* Main Container */}
       <main className="flex-grow w-full max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop py-md md:py-lg">
-        
+
         {/* Layout Grid: Left Sidebar (3 cols) & Main Area (9 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
-          
+
           {/* LEFT SIDEBAR (3 Columns on Desktop) */}
           <div className="lg:col-span-3 flex flex-col gap-sm">
-            
+
             {/* Sidebar Container */}
             <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-md shadow-ambient flex flex-col items-center text-center">
-              
+
               {/* Circular Avatar Container with dynamic hover camera overlay */}
               <div className="relative group w-24 h-24 mb-sm rounded-full overflow-hidden border-2 border-primary/10 shadow-sm cursor-pointer" onClick={triggerFileInput}>
-                <img 
-                  src={avatarUrl} 
-                  alt="Ảnh đại diện" 
+                <img
+                  src={avatarUrl}
+                  alt="Ảnh đại diện"
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   onError={(e) => {
                     // Fallback to circular initials or standard placeholder if custom image fails to load
@@ -514,12 +513,12 @@ export default function ProfileDashboard() {
                   <Camera className="w-6 h-6 text-white" />
                 </div>
               </div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleAvatarChange} 
-                accept="image/*" 
-                className="hidden" 
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAvatarChange}
+                accept="image/*"
+                className="hidden"
               />
 
               {/* User greeting */}
@@ -538,11 +537,10 @@ export default function ProfileDashboard() {
                 {/* Tab: Thông tin tài khoản */}
                 <button
                   onClick={() => { setActiveTab('account'); setShowAddressForm(false); }}
-                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${
-                    activeTab === 'account'
-                      ? 'bg-primary/5 text-primary font-bold'
-                      : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
-                  }`}
+                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${activeTab === 'account'
+                    ? 'bg-primary/5 text-primary font-bold'
+                    : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+                    }`}
                 >
                   <User className={`w-5 h-5 ${activeTab === 'account' ? 'text-primary' : 'text-outline'}`} />
                   <span className="text-left">Thông tin tài khoản</span>
@@ -551,11 +549,10 @@ export default function ProfileDashboard() {
                 {/* Tab: Lịch sử đơn hàng */}
                 <button
                   onClick={() => { setActiveTab('orders'); setShowAddressForm(false); }}
-                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${
-                    activeTab === 'orders'
-                      ? 'bg-primary/5 text-primary font-bold'
-                      : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
-                  }`}
+                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${activeTab === 'orders'
+                    ? 'bg-primary/5 text-primary font-bold'
+                    : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+                    }`}
                 >
                   <ShoppingBag className={`w-5 h-5 ${activeTab === 'orders' ? 'text-primary' : 'text-outline'}`} />
                   <span className="text-left">Lịch sử đơn hàng</span>
@@ -564,11 +561,10 @@ export default function ProfileDashboard() {
                 {/* Tab: Sổ địa chỉ */}
                 <button
                   onClick={() => { setActiveTab('addresses'); setShowAddressForm(false); }}
-                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${
-                    activeTab === 'addresses'
-                      ? 'bg-primary/5 text-primary font-bold'
-                      : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
-                  }`}
+                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${activeTab === 'addresses'
+                    ? 'bg-primary/5 text-primary font-bold'
+                    : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+                    }`}
                 >
                   <MapPin className={`w-5 h-5 ${activeTab === 'addresses' ? 'text-primary' : 'text-outline'}`} />
                   <span className="text-left">Sổ địa chỉ</span>
@@ -577,11 +573,10 @@ export default function ProfileDashboard() {
                 {/* Tab: Đánh giá của tôi */}
                 <button
                   onClick={() => { setActiveTab('my-reviews'); setShowAddressForm(false); }}
-                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${
-                    activeTab === 'my-reviews'
-                      ? 'bg-primary/5 text-primary font-bold'
-                      : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
-                  }`}
+                  className={`w-full flex items-center gap-sm px-4 py-3 rounded-xl text-label-md font-semibold transition-all duration-200 focus:outline-none ${activeTab === 'my-reviews'
+                    ? 'bg-primary/5 text-primary font-bold'
+                    : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+                    }`}
                 >
                   <Star className={`w-5 h-5 ${activeTab === 'my-reviews' ? 'text-primary' : 'text-outline'}`} />
                   <span className="text-left">Đánh giá của tôi</span>
@@ -607,10 +602,10 @@ export default function ProfileDashboard() {
 
           {/* MAIN CONTENT AREA (9 Columns on Desktop) */}
           <div className="lg:col-span-9">
-            
+
             {/* White card wrapper */}
             <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-md sm:p-lg shadow-ambient min-h-[580px]">
-              
+
               {/* TAB 1: THÔNG TIN TÀI KHOẢN (ACCOUNT INFO) */}
               {activeTab === 'account' && (
                 <div className="animate-in fade-in duration-300">
@@ -629,7 +624,7 @@ export default function ProfileDashboard() {
                     {/* Input Forms (2-Column Grid) */}
                     <form onSubmit={handleSaveProfile} className="flex-grow space-y-sm text-left">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-                        
+
                         {/* Họ và tên */}
                         <div className="flex flex-col gap-xs">
                           <label className="text-label-md uppercase tracking-wider font-semibold text-on-surface-variant">
@@ -752,16 +747,16 @@ export default function ProfileDashboard() {
                         Ảnh đại diện
                       </label>
                       <div className="w-32 h-32 rounded-xl overflow-hidden border border-outline-variant/30 relative bg-surface-container-low shadow-sm">
-                        <img 
-                          src={avatarUrl} 
-                          alt="Thumbnail Avatar" 
+                        <img
+                          src={avatarUrl}
+                          alt="Thumbnail Avatar"
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256";
                           }}
                         />
                       </div>
-                      
+
                       {/* Ghost Upload Button (1px outline) */}
                       <button
                         type="button"
@@ -793,7 +788,7 @@ export default function ProfileDashboard() {
                   {/* Orders List */}
                   <div className="space-y-md">
                     {orders.map((order) => (
-                      <div 
+                      <div
                         key={order.id}
                         className="border border-outline-variant/30 rounded-2xl bg-surface-container-lowest overflow-hidden shadow-sm transition-all duration-200 hover:border-outline-variant/60"
                       >
@@ -818,16 +813,15 @@ export default function ProfileDashboard() {
                               </span>
                             </div>
                           </div>
-                          
+
                           {/* Order Status Badge */}
                           <div>
-                            <span className={`inline-block px-3 py-1 rounded-full text-label-sm font-semibold ${
-                              order.rawStatus === 'COMPLETED' ? 'bg-[#e6f4ea] text-[#137333] border border-[#a8dab5]/30' :
+                            <span className={`inline-block px-3 py-1 rounded-full text-label-sm font-semibold ${order.rawStatus === 'COMPLETED' ? 'bg-[#e6f4ea] text-[#137333] border border-[#a8dab5]/30' :
                               order.rawStatus === 'DELIVERED' ? 'bg-cyan-50 text-cyan-700 border border-cyan-200' :
-                              order.rawStatus === 'SHIPPING' ? 'bg-[#e8f0fe] text-[#1a73e8] border border-[#adcbf7]/30' :
-                              order.rawStatus === 'PENDING' ? 'bg-[#fef7e0] text-[#b06000] border border-[#fde293]/30' :
-                              'bg-[#fce8e6] text-[#c5221f] border border-[#f5b4ad]/30'
-                            }`}>
+                                order.rawStatus === 'SHIPPING' ? 'bg-[#e8f0fe] text-[#1a73e8] border border-[#adcbf7]/30' :
+                                  order.rawStatus === 'PENDING' ? 'bg-[#fef7e0] text-[#b06000] border border-[#fde293]/30' :
+                                    'bg-[#fce8e6] text-[#c5221f] border border-[#f5b4ad]/30'
+                              }`}>
                               {order.status}
                             </span>
                           </div>
@@ -852,9 +846,9 @@ export default function ProfileDashboard() {
                           {order.items.map((item) => (
                             <div key={item.id} className="flex gap-sm py-sm first:pt-0 last:pb-0 text-left">
                               <div className="w-16 h-20 rounded-xl overflow-hidden bg-surface-container-low border border-outline-variant/20 flex-shrink-0 flex items-center justify-center">
-                                <img 
-                                  src={item.imageUrl} 
-                                  alt={item.name} 
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.name}
                                   className="w-full h-full object-contain p-1"
                                   onError={(e) => {
                                     (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=256";
@@ -919,7 +913,7 @@ export default function ProfileDashboard() {
                                 onClick={() => setRefundModalOrder(order)}
                                 className="px-3 py-2 border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-md text-label-sm font-semibold flex items-center gap-1 cursor-pointer"
                               >
-                                Đổi trả / Hoàn tiền (SOP-009)
+                                Đổi trả / Hoàn tiền
                               </button>
                             )}
                             {order.rawStatus === 'DELIVERY_FAILED' && order.paymentStatus === 'PAID' && (
@@ -956,7 +950,7 @@ export default function ProfileDashboard() {
               {/* TAB 3: SỔ ĐỊA CHỈ (ADDRESS BOOK) */}
               {activeTab === 'addresses' && (
                 <div className="animate-in fade-in duration-300">
-                  
+
                   {/* Address List Screen */}
                   {!showAddressForm ? (
                     <div>
@@ -970,7 +964,7 @@ export default function ProfileDashboard() {
                             Lưu và cập nhật địa chỉ giao nhận hàng của bạn
                           </p>
                         </div>
-                        
+
                         {/* Add New Address Button */}
                         <button
                           type="button"
@@ -993,13 +987,12 @@ export default function ProfileDashboard() {
                       {/* Addresses List Container */}
                       <div className="space-y-sm">
                         {addresses.map((addr) => (
-                          <div 
+                          <div
                             key={addr.id}
-                            className={`border rounded-2xl p-md flex flex-col sm:flex-row justify-between items-start gap-md text-left transition-all duration-200 ${
-                              addr.isDefault 
-                                ? 'bg-primary/5 border-primary/40' 
-                                : 'bg-surface-container-lowest border-outline-variant/30 hover:border-outline-variant/60'
-                            }`}
+                            className={`border rounded-2xl p-md flex flex-col sm:flex-row justify-between items-start gap-md text-left transition-all duration-200 ${addr.isDefault
+                              ? 'bg-primary/5 border-primary/40'
+                              : 'bg-surface-container-lowest border-outline-variant/30 hover:border-outline-variant/60'
+                              }`}
                           >
                             <div className="space-y-xs">
                               {/* Header Title with Custom Badges */}
@@ -1362,7 +1355,7 @@ export default function ProfileDashboard() {
                 }}
                 className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
               />
-              
+
               {reviewImages.length > 0 && (
                 <div className="flex gap-2 mt-3">
                   {reviewImages.map((img, index) => (
@@ -1382,12 +1375,12 @@ export default function ProfileDashboard() {
             </div>
 
             <div className="mt-4 flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => {
                   setReviewItem(null);
                   setEditingReview(null);
                   setReviewImages([]);
-                }} 
+                }}
                 className="px-4 py-2 rounded-lg bg-slate-100 font-semibold cursor-pointer"
               >
                 Hủy
@@ -1424,9 +1417,9 @@ export default function ProfileDashboard() {
 
             <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 space-y-3">
               <h3 className="text-sm font-bold text-amber-900 flex items-center gap-1.5">
-                2. Thông tin Tài khoản Ngân hàng nhận hoàn tiền (SOP-009)
+                2. Thông tin Tài khoản Ngân hàng nhận hoàn tiền
               </h3>
-              
+
               <div>
                 <label className="block text-xs font-semibold text-amber-800 mb-1">Tên Ngân hàng</label>
                 <select
@@ -1481,7 +1474,7 @@ export default function ProfileDashboard() {
                 onClick={submitRefundRequest}
                 className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-sm shadow-sm cursor-pointer"
               >
-                {submittingAction ? 'Đang gửi...' : 'Xác nhận gửi Yêu cầu SOP-009'}
+                {submittingAction ? 'Đang gửi...' : 'Xác nhận gửi Yêu cầu'}
               </button>
             </div>
           </div>
