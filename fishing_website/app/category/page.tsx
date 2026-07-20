@@ -309,7 +309,7 @@ export default function CategoryPage() {
       <main className="flex-grow w-full max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop py-sm md:py-md">
         
         {/* BANNER SECTION */}
-        <section className="mb-lg rounded-2xl overflow-hidden relative h-64 md:h-72 bg-gradient-to-r from-black/75 to-transparent flex items-center shadow-ambient">
+        <section className="mb-lg rounded-2xl overflow-hidden relative h-64 md:h-72 flex items-center shadow-ambient">
           {/* Banner Graphic Backdrop based on active hash */}
           <img 
             src={
@@ -322,11 +322,14 @@ export default function CategoryPage() {
                 : '/images/river-hero-banner.png'
             } 
             alt="Fishing Category Banner" 
-            className="absolute inset-0 w-full h-full object-cover -z-10"
+            className="absolute inset-0 w-full h-full object-cover z-0"
           />
 
+          {/* Dark Overlay Gradient for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent z-10" />
+
           {/* Banner Content (Left Aligned) */}
-          <div className="relative pl-sm md:pl-lg pr-sm max-w-2xl text-left z-10 text-white">
+          <div className="relative pl-sm md:pl-lg pr-sm max-w-2xl text-left z-20 text-white">
             <h1 className="text-[28px] md:text-headline-xl font-bold tracking-tight mb-xs">
               {activeHash === 'sea' ? 'Câu Cá Biển' : activeHash === 'lake' ? 'Đồ câu Hồ' : activeHash === 'camping' ? 'Đồ Cắm Trại' : 'Cần Câu Sông Suối'}
             </h1>
