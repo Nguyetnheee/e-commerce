@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { adminApi } from '../../../lib/api';
+import { adminApi, productApi } from '../../../lib/api';
 import { 
   LogOut, 
   Package, 
@@ -75,22 +75,64 @@ export default function KhoDashboardPage() {
   };
 
   const fetchRealWarehouseData = async () => {
+    let currentThreshold = 10;
     try {
       const stats = await adminApi.getInventoryDashboard();
+      currentThreshold = Number(stats?.lowStockThreshold || 10);
       setWarehouseStats({
         totalStock: Number(stats?.totalStock || 0),
         lowStockSkuCount: Number(stats?.lowStockSkuCount || 0),
         packingOrderCount: Number(stats?.packingOrderCount || 0),
         todayReceiptCount: Number(stats?.todayReceiptCount || 0),
-        lowStockThreshold: Number(stats?.lowStockThreshold || 5),
+        lowStockThreshold: currentThreshold,
       });
     } catch (e) {
       console.error('Không thể tải số liệu tổng hợp kho:', e);
     }
 
     try {
-      const items = await adminApi.getAllInventoryItems();
-      if (Array.isArray(items) && items.length > 0) {
+      let items: any[] = [];
+      
+      // 1. Try to fetch from adminInventoryItems
+      try {
+        const apiItems = await adminApi.getAllInventoryItems();
+        if (Array.isArray(apiItems) && apiItems.length > 0) {
+          items = apiItems;
+        }
+      } catch (err) {
+        console.warn('Không thể gọi API getAllInventoryItems, đang thử fallback qua public products API:', err);
+      }
+
+      // 2. Fallback: fetch products public API and map their variants
+      if (items.length === 0) {
+        try {
+          const prodRes = await productApi.getProducts({ size: 1000 });
+          const prodList = Array.isArray(prodRes?.content) ? prodRes.content : (Array.isArray(prodRes) ? prodRes : []);
+          const extractedVariants: any[] = [];
+          prodList.forEach((p: any) => {
+            if (Array.isArray(p.variants)) {
+              p.variants.forEach((v: any) => {
+                extractedVariants.push({
+                  variantId: v.id,
+                  id: v.id,
+                  sku: v.sku,
+                  productName: p.name,
+                  variantName: v.variantName,
+                  stockQuantity: v.stockQuantity,
+                  price: v.basePrice || v.discountPrice || 0
+                });
+              });
+            }
+          });
+          if (extractedVariants.length > 0) {
+            items = extractedVariants;
+          }
+        } catch (fallbackError) {
+          console.error('Lỗi khi tải dữ liệu fallback từ products:', fallbackError);
+        }
+      }
+
+      if (items.length > 0) {
         const mapped = items.map((v: any) => {
           const stock = Number(v.stockQuantity || 0);
           return {
@@ -98,7 +140,7 @@ export default function KhoDashboardPage() {
             sku: v.sku || `VAR-${v.id}`,
             name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Sản phẩm #${v.id}`,
             stock: stock,
-            price: Number(v.price || 0),
+            price: Number(v.price || v.basePrice || 0),
             min: 10,
             shelf: 'Kệ A-01',
             status: stock === 0 ? 'Hết hàng' : stock < 10 ? 'Thiếu hàng' : 'Bình thường'
@@ -106,8 +148,10 @@ export default function KhoDashboardPage() {
         });
         setProducts(mapped);
         const lowStockCount = mapped.filter(p => p.stock < 10).length;
+        const totalStock = mapped.reduce((sum, item) => sum + item.stock, 0);
         setWarehouseStats(prev => ({
           ...prev,
+          totalStock: totalStock,
           lowStockSkuCount: lowStockCount,
           lowStockThreshold: 10
         }));
@@ -121,7 +165,7 @@ export default function KhoDashboardPage() {
               sku: v.sku || `VAR-${v.id}`,
               name: [v.productName, v.variantName].filter(Boolean).join(' — ') || `Lựa chọn sản phẩm #${v.id}`,
               stock: stock,
-              price: Number(v.price || 0),
+              price: Number(v.price || v.basePrice || 0),
               min: 10,
               shelf: 'Chưa cập nhật',
               status: stock === 0 ? 'Hết hàng' : stock < 10 ? 'Thiếu hàng' : 'Bình thường'
@@ -129,8 +173,10 @@ export default function KhoDashboardPage() {
           });
           setProducts(mapped);
           const lowStockCount = mapped.filter(p => p.stock < 10).length;
+          const totalStock = mapped.reduce((sum, item) => sum + item.stock, 0);
           setWarehouseStats(prev => ({
             ...prev,
+            totalStock: totalStock,
             lowStockSkuCount: lowStockCount,
             lowStockThreshold: 10
           }));
