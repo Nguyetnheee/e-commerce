@@ -200,11 +200,20 @@ export default function CategoryPage() {
     return []; // No mock fallback
   }, [dbProducts, activeHash]);
 
+  const availableBrands = useMemo(
+    () => Array.from(new Set(
+      activeProducts
+        .map(product => product.brand)
+        .filter((brand): brand is string => Boolean(brand && brand.trim()))
+    )).sort((a, b) => a.localeCompare(b, 'vi')),
+    [activeProducts]
+  );
+
   const productTypes = useMemo(
     () => Array.from(new Set(
       activeProducts
-        .map(product => product.categoryName)
-        .filter((name): name is string => Boolean(name))
+        .flatMap(product => [product.categoryName, product.parentCategoryName, product.type])
+        .filter((name): name is string => Boolean(name && name.trim()))
     )).sort((a, b) => a.localeCompare(b, 'vi')),
     [activeProducts]
   );
@@ -213,11 +222,23 @@ export default function CategoryPage() {
   const filteredProducts = useMemo(() => {
     const productsByType = selectedProductType === 'all'
       ? activeProducts
-      : activeProducts.filter(product => product.categoryName === selectedProductType);
+      : activeProducts.filter(product => 
+          product.categoryName === selectedProductType || 
+          product.parentCategoryName === selectedProductType ||
+          product.type === selectedProductType
+        );
+
+    const matchesBrandFilter = (product: any) => {
+      if (selectedBrands.length === 0) return true;
+      return selectedBrands.some(b => 
+        b.toLowerCase() === (product.brand || '').toLowerCase() || 
+        b.toLowerCase() === (product.brandKey || '').toLowerCase()
+      );
+    };
 
     if (activeHash === 'sea') {
       let result = productsByType.filter(product => {
-        if (selectedBrands.length > 0 && !selectedBrands.some(b => b.toLowerCase() === product.brandKey.toLowerCase())) return false;
+        if (!matchesBrandFilter(product)) return false;
         if (selectedMaterials.length > 0 && !selectedMaterials.includes(product.material)) return false;
         
         if (selectedPrices.length > 0) {
@@ -238,10 +259,8 @@ export default function CategoryPage() {
 
     } else if (activeHash === 'lake') {
       let result = productsByType.filter(product => {
-        // Brand checkbox filter
-        if (selectedBrands.length > 0 && !selectedBrands.some(b => b.toLowerCase() === product.brandKey.toLowerCase())) return false;
+        if (!matchesBrandFilter(product)) return false;
 
-        // Price radio filter
         if (selectedPrices.length > 0) {
           const matchesPrice = selectedPrices.some(priceRange => {
             if (priceRange === 'under1m') return product.priceVal < 1000000;
@@ -260,10 +279,8 @@ export default function CategoryPage() {
 
     } else if (activeHash === 'camping') {
       let result = productsByType.filter(product => {
-        // Brand checkbox filter
-        if (selectedBrands.length > 0 && !selectedBrands.some(b => b.toLowerCase() === product.brandKey.toLowerCase())) return false;
+        if (!matchesBrandFilter(product)) return false;
 
-        // Price checkbox filter
         if (selectedPrices.length > 0) {
           const matchesPrice = selectedPrices.some(priceRange => {
             if (priceRange === 'under1m') return product.priceVal < 1000000;
@@ -282,8 +299,8 @@ export default function CategoryPage() {
 
     } else {
       // River filtering logic
-      return productsByType.filter(product => {
-        if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false;
+      let result = productsByType.filter(product => {
+        if (!matchesBrandFilter(product)) return false;
         if (selectedActions.length > 0 && !selectedActions.includes(product.action)) return false;
 
         if (selectedPrices.length > 0) {
@@ -297,6 +314,10 @@ export default function CategoryPage() {
         }
         return true;
       });
+
+      if (sortBy === 'price-low') result.sort((a, b) => a.priceVal - b.priceVal);
+      else if (sortBy === 'price-high') result.sort((a, b) => b.priceVal - a.priceVal);
+      return result;
     }
   }, [activeHash, activeProducts, selectedBrands, selectedPrices, selectedActions, selectedMaterials, selectedProductType, sortBy]);
 
@@ -534,96 +555,29 @@ export default function CategoryPage() {
                   </div>
                 </div>
 
-                {/* Filter 2: Thương hiệu (Brand list matches mockup options) */}
+                {/* Filter 2: Thương hiệu (Dynamic from DB products for current area) */}
                 <div>
                   <h4 className="text-label-sm font-bold text-on-surface uppercase mb-xs font-sans tracking-wide">
                     Thương hiệu
                   </h4>
                   <div className="flex flex-col gap-xs font-sans text-label-sm text-on-surface-variant">
-                    {activeHash === 'camping' ? (
-                      <>
-                        <label className="flex items-center gap-sm cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedBrands.includes('WILDSTREAM')}
-                            onChange={() => handleToggleBrand('WILDSTREAM')}
-                            className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                          />
-                          <span>WildStream</span>
-                        </label>
-                        <label className="flex items-center gap-sm cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedBrands.includes('NATUREHIKE')}
-                            onChange={() => handleToggleBrand('NATUREHIKE')}
-                            className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                          />
-                          <span>Naturehike</span>
-                        </label>
-                      </>
+                    {availableBrands.length === 0 ? (
+                      <span className="text-slate-400 italic text-xs">Không có thương hiệu</span>
                     ) : (
-                      <>
-                        <label className="flex items-center gap-sm cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedBrands.includes('SHIMANO')}
-                            onChange={() => handleToggleBrand('SHIMANO')}
-                            className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                          />
-                          <span>Shimano</span>
-                        </label>
-                        <label className="flex items-center gap-sm cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedBrands.includes('DAIWA')}
-                            onChange={() => handleToggleBrand('DAIWA')}
-                            className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                          />
-                          <span>Daiwa</span>
-                        </label>
-                        {activeHash === 'lake' ? (
-                          <>
-                            <label className="flex items-center gap-sm cursor-pointer select-none">
-                              <input 
-                                type="checkbox" 
-                                checked={selectedBrands.includes('HANDING')}
-                                onChange={() => handleToggleBrand('HANDING')}
-                                className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                              />
-                              <span>Handing</span>
-                            </label>
-                            <label className="flex items-center gap-sm cursor-pointer select-none">
-                              <input 
-                                type="checkbox" 
-                                checked={selectedBrands.includes('KAIWO')}
-                                onChange={() => handleToggleBrand('KAIWO')}
-                                className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                              />
-                              <span>Kaiwo</span>
-                            </label>
-                          </>
-                        ) : activeHash === 'sea' ? (
-                          <label className="flex items-center gap-sm cursor-pointer select-none">
+                      availableBrands.map((brandName) => {
+                        const isChecked = selectedBrands.some(b => b.toLowerCase() === brandName.toLowerCase());
+                        return (
+                          <label key={brandName} className="flex items-center gap-sm cursor-pointer select-none">
                             <input 
                               type="checkbox" 
-                              checked={selectedBrands.includes('PENN')}
-                              onChange={() => handleToggleBrand('PENN')}
-                              className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
+                              checked={isChecked}
+                              onChange={() => handleToggleBrand(brandName)}
+                              className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45 cursor-pointer"
                             />
-                            <span>Penn</span>
+                            <span>{brandName}</span>
                           </label>
-                        ) : (
-                          <label className="flex items-center gap-sm cursor-pointer select-none">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedBrands.includes('ABU GARCIA')}
-                              onChange={() => handleToggleBrand('ABU GARCIA')}
-                              className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                            />
-                            <span>Abu Garcia</span>
-                          </label>
-                        )}
-                      </>
+                        );
+                      })
                     )}
                   </div>
                 </div>

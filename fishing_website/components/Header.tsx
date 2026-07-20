@@ -105,6 +105,7 @@ export default function Header() {
     { label: 'Biển', href: '/category#sea' },
     { label: 'Sông', href: '/category#river' },
     { label: 'Hồ', href: '/category#lake' },
+    { label: 'Cắm trại', href: '/category#camping' },
     { label: 'Khám phá', href: '/blog' },
     { label: 'Giới thiệu', href: '#about' },
   ];
@@ -119,6 +120,8 @@ export default function Header() {
           setActiveTab('Biển');
         } else if (hash === 'lake') {
           setActiveTab('Hồ');
+        } else if (hash === 'camping') {
+          setActiveTab('Cắm trại');
         } else {
           setActiveTab('Sông');
         }
