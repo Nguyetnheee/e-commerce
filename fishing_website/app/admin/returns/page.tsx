@@ -36,13 +36,6 @@ interface ReturnRequest {
   status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'REFUNDED' | 'PENDING_INSPECTION' | 'RESTOCKED' | 'DISPOSED';
 }
 
-const defaultReturns: ReturnRequest[] = [
-  { id: 'RET-101', orderId: '2026-07-01-9982', customerName: 'Trần Minh Hoàng', productName: 'Máy câu Shimano Stella SW', variantId: '1', variantSku: 'WS-SHI-STELLA', quantity: 1, reason: 'Hàng trầy xước nhẹ khi vận chuyển', refundAmount: 18500000, bankName: 'Vietcombank', bankAccount: '0071001234567', bankHolder: 'TRAN MINH HOANG', date: '2026-07-10', status: 'PENDING_APPROVAL' },
-  { id: 'RET-102', orderId: '2026-07-02-1209', customerName: 'Phạm Thị Lan', productName: 'Lều Dã Ngoại Peak-4 Naturehike', variantId: '2', variantSku: 'WS-CAMP-PEAK4', quantity: 1, reason: 'Sai màu sắc so với đơn đặt hàng', refundAmount: 5800000, bankName: 'Techcombank', bankAccount: '1903456789012', bankHolder: 'PHAM THI LAN', date: '2026-07-11', status: 'APPROVED' },
-  { id: 'RET-103', orderId: '2026-06-28-5432', customerName: 'Lê Văn Nam', productName: 'Bộ Lưỡi Câu Titan Chống Gỉ', variantId: '3', variantSku: 'WS-HOOK-TITAN', quantity: 2, reason: 'Kích cỡ lưỡi câu quá bé', refundAmount: 360000, bankName: 'MB Bank', bankAccount: '9704221234567', bankHolder: 'LE VAN NAM', date: '2026-07-08', status: 'REFUNDED' },
-  { id: 'RET-104', orderId: '2026-07-05-8812', customerName: 'Nguyễn Văn A', productName: 'Cần câu Lure Daiwa Crossfire X', variantId: '4', variantSku: 'WS-DAI-CROSS', quantity: 1, reason: 'Đơn giao hàng thất bại - Hàng trả lại kho kiểm định', date: '2026-07-15', status: 'PENDING_INSPECTION' },
-];
-
 export default function ReturnsPage() {
   const router = useRouter();
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
@@ -65,14 +58,10 @@ export default function ReturnsPage() {
     try {
       setLoading(true);
       const data = await adminApi.getReturns();
-      if (Array.isArray(data) && data.length > 0) {
-        setReturns(data);
-      } else {
-        setReturns(defaultReturns);
-      }
+      setReturns(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.log('Using default returns fallback:', err);
-      setReturns(defaultReturns);
+      console.error('Lỗi khi tải dữ liệu từ CSDL:', err);
+      setReturns([]);
     } finally {
       setLoading(false);
     }
