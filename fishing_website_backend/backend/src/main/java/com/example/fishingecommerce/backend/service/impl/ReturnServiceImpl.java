@@ -161,7 +161,26 @@ public class ReturnServiceImpl implements ReturnService {
     }
 
     private String generateCode() {
-        long next = returnRequestRepository.countByCodeStartingWith("RET-") + 1;
+        List<ReturnRequest> all = returnRequestRepository.findAll();
+        long maxNum = 0;
+        for (ReturnRequest r : all) {
+            String c = r.getCode();
+            if (c != null && c.startsWith("RET-")) {
+                try {
+                    long num = Long.parseLong(c.substring(4));
+                    if (num > maxNum) {
+                        maxNum = num;
+                    }
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+        }
+        long next = maxNum + 1;
+        long count = returnRequestRepository.countByCodeStartingWith("RET-") + 1;
+        if (next < count) {
+            next = count;
+        }
         return String.format(Locale.ROOT, "RET-%03d", next);
     }
 
