@@ -145,6 +145,9 @@ export const orderApi = {
   recreatePaymentLink: (orderCode: string) => fetchAPI(`/api/v1/orders/${orderCode}/recreate-payment-link`, {
     method: 'POST',
   }),
+  cancelPaymentOrder: (orderCode: string) => fetchAPI(`/api/v1/orders/${orderCode}/cancel-payment`, {
+    method: 'POST',
+  }),
   confirmReceived: (orderId: number | string) => fetchAPI(`/api/v1/orders/${orderId}/confirm-received`, {
     method: 'POST',
   }),

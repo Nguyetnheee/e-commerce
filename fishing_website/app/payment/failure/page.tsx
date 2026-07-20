@@ -1,10 +1,11 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { XCircle, HelpCircle, ShoppingCart, Home } from 'lucide-react';
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
+import { orderApi } from '../../../lib/api';
 
 function PaymentFailureContent() {
   const router = useRouter();
@@ -26,6 +27,15 @@ function PaymentFailureContent() {
     searchParams.get('desc') ||
     searchParams.get('message') ||
     'Giao dịch đã bị hủy hoặc bị từ chối.';
+
+  // Automatically inform backend to mark order as CANCELLED and restore stock
+  useEffect(() => {
+    if (orderCode && orderCode !== 'N/A') {
+      orderApi.cancelPaymentOrder(orderCode).catch((err) => {
+        console.log('Payment cancellation recorded or already processed:', err);
+      });
+    }
+  }, [orderCode]);
 
   const handleReorder = () => {
     router.push('/checkout');

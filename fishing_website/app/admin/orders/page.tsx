@@ -341,13 +341,19 @@ export default function AdminOrdersPage() {
                         <div className="flex justify-end gap-xs">
                           {order.status === 'PENDING' && (
                             <>
-                              <button
-                                onClick={() => handleUpdateStatus(order.id, 'PACKING')}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-1 rounded"
-                                title="Phê duyệt"
-                              >
-                                Phê duyệt
-                              </button>
+                              {order.paymentMethod === 'PAYOS' && order.paymentStatus !== 'PAID' ? (
+                                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200" title="Khách hàng chưa hoàn tất thanh toán qua PayOS">
+                                  Chờ thanh toán PayOS
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleUpdateStatus(order.id, 'PACKING')}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-1 rounded"
+                                  title="Phê duyệt"
+                                >
+                                  Phê duyệt
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleCancelOrder(order.id)}
                                 className="bg-red-50 hover:bg-red-100 text-red-600 font-bold text-[10px] px-2.5 py-1 rounded border border-red-200"

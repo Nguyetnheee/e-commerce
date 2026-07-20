@@ -39,6 +39,7 @@ public class SecurityConfig {
                     "/api/v1/admin/auth/setup-first-admin",
                     "/api/v1/admin/auth/register-staff",
                     "/api/v1/payments/payos/**",
+                    "/api/v1/orders/*/cancel-payment",
                     "/api/health",
                     "/health",
                     "/swagger-ui/**",

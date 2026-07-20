@@ -101,6 +101,12 @@ public class OrderController {
         return ResponseEntity.ok(Map.of("checkoutUrl", checkoutUrl));
     }
 
+    @PostMapping("/{orderCode}/cancel-payment")
+    @Operation(summary = "Hủy đơn hàng thanh toán PayOS thất bại", description = "Hủy đơn hàng và hoàn tồn kho khi khách hàng không hoàn tất thanh toán PayOS")
+    public ResponseEntity<OrderDetailResponse> cancelPaymentOrder(@PathVariable String orderCode) {
+        return ResponseEntity.ok(orderService.cancelPaymentOrder(orderCode));
+    }
+
     @PostMapping("/shipping-fee")
     @Operation(summary = "Tính phí vận chuyển", description = "Tính phí vận chuyển theo khu vực và số lượng sản phẩm")
     public ResponseEntity<ShippingFeeResponse> calculateShippingFee(@Valid @RequestBody ShippingFeeRequest request) {

@@ -308,6 +308,51 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    public OrderDetailResponse cancelPaymentOrder(String orderCode) {
+        Order order = orderRepository.findByOrderCode(orderCode)
+                .orElseGet(() -> {
+                    try {
+                        Long id = Long.parseLong(orderCode);
+                        return orderRepository.findById(id).orElse(null);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                });
+
+        if (order == null) {
+            throw new AppException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng với mã: " + orderCode);
+        }
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            return mapToResponse(order);
+        }
+
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "Đơn hàng đã thanh toán thành công, không thể hủy");
+        }
+
+        if (order.getStatus() == OrderStatus.PENDING) {
+            if (order.getOrderItems() != null) {
+                for (OrderItem item : order.getOrderItems()) {
+                    ProductVariant variant = item.getVariant();
+                    if (variant != null) {
+                        variant.setStockQuantity(variant.getStockQuantity() + item.getQuantity());
+                        variantRepository.save(variant);
+                    }
+                }
+            }
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setPaymentStatus(PaymentStatus.FAILED);
+        order.setCancelReason("Khách hàng hủy/thanh toán không thành công qua PayOS");
+        Order saved = orderRepository.save(order);
+        recordShippingEvent(saved, OrderStatus.CANCELLED, "Thanh toán PayOS không thành công", "SYSTEM");
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public OrderDetailResponse approveAndAssignShipper(Long orderId, Long shipperId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "Đơn hàng không tồn tại"));

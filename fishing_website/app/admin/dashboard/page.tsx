@@ -97,7 +97,11 @@ export default function AdminDashboardPage() {
       const [ordersData, staffData] = await Promise.all([adminApi.getOrders(), adminApi.getAllAdmins()]);
       if (Array.isArray(ordersData)) {
         setTotalOrders(ordersData.length);
-        const pending = ordersData.filter((o: any) => o.status === 'PENDING');
+        const pending = ordersData.filter((o: any) => {
+          if (o.status !== 'PENDING') return false;
+          if (o.paymentMethod === 'PAYOS' && o.paymentStatus !== 'PAID') return false;
+          return true;
+        });
         setPendingOrders(pending);
       }
       if (Array.isArray(staffData)) {
