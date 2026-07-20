@@ -75,7 +75,7 @@ export default function CategoryPage() {
 
     try {
       if (isNaN(Number(product.id))) {
-        alert('Đây là sản phẩm dùng thử (Mock). Vui lòng chọn sản phẩm thực tế từ Cơ sở dữ liệu để mua hàng!');
+        alert('Sản phẩm không có mã dữ liệu hợp lệ. Vui lòng tải lại trang!');
         return;
       }
       
@@ -94,11 +94,17 @@ export default function CategoryPage() {
     const fetchDbProducts = async () => {
       try {
         setLoadingDb(true);
-        const data = await productApi.getProducts();
+        // The storefront filters all four major categories client-side. Request
+        // the full visible catalog instead of Spring's default first page (20).
+        const data = await productApi.getProducts({
+          isVisible: true,
+          size: 500,
+          sort: ['id,desc'],
+        });
         const productsList = Array.isArray(data) ? data : (data && Array.isArray(data.content) ? data.content : []);
         setDbProducts(productsList.map(mapBackendProduct));
       } catch (err) {
-        console.log('Backend API listing not available yet. Falling back to mock data.', err);
+        console.error('Không thể tải danh sách sản phẩm từ cơ sở dữ liệu.', err);
       } finally {
         setLoadingDb(false);
       }
@@ -123,253 +129,8 @@ export default function CategoryPage() {
     setSelectedMaterials([]);
     setActiveMenuType('all');
     
-    if (activeHash === 'lake') {
-      // By default in mockup, "Câu Lục" is checked!
-      setSelectedTypes(['Câu Lục']);
-    } else {
-      setSelectedTypes([]);
-    }
+    setSelectedTypes([]);
   }, [activeHash]);
-
-  // Original mockup products list for River Fishing
-  const riverProducts = useMemo(() => [
-    {
-      id: 'river-1',
-      brand: 'SHIMANO',
-      title: 'Cần câu suối Carbon River Master UL',
-      description: 'Dòng cần siêu nhẹ tối ưu cho môi trường nước chảy mạnh suối tự nhiên.',
-      price: '1.250.000 ₫',
-      priceVal: 1250000,
-      imageUrl: '/images/product-buggy.png',
-      badge: 'Bán chạy',
-      badgeType: 'default' as const,
-      action: 'Fast',
-    },
-    {
-      id: 'river-2',
-      brand: 'DAIWA',
-      title: 'Cần câu Daiwa Presso Air AGS Ultralight',
-      description: 'Trang bị khoen AGS siêu nhẹ, cảm giác dòng cá tuyệt đỉnh trong khe suối.',
-      price: '8.400.000 ₫',
-      priceVal: 8400000,
-      imageUrl: '/images/product-keitruck.png',
-      badge: 'Premium',
-      badgeType: 'premium' as const,
-      action: 'Moderate',
-    },
-    {
-      id: 'river-3',
-      brand: 'ABU GARCIA',
-      title: 'Abu Garcia Troutin Marquis Nano Stream',
-      description: 'Sử dụng công nghệ Nano carbon tăng độ bền và giảm trọng lượng cần tối đa.',
-      price: '3.200.000 ₫',
-      priceVal: 3200000,
-      imageUrl: '/images/product-yellowfish.png',
-      action: 'Slow',
-    },
-  ], []);
-
-  // Original mockup products list for Sea Fishing
-  const seaProducts = useMemo(() => [
-    {
-      id: 'sea-1',
-      brand: 'SHIMANO',
-      title: 'Máy câu Shimano bạo lực Stella SW',
-      description: 'Dòng máy cao cấp nhất cho câu biển, chịu lực cực đại...',
-      price: '18.500.000 ₫',
-      priceVal: 18500000,
-      imageUrl: '/images/product-stella.png',
-      badge: 'Bán chạy',
-      badgeType: 'default' as const,
-      material: 'Titan',
-      brandKey: 'Shimano',
-      ratingCount: 53,
-      menuType: 'gear',
-    },
-    {
-      id: 'sea-2',
-      brand: 'DAIWA',
-      title: 'Cần Câu Carbon Daiwa Saltiga',
-      description: 'Phôi Carbon mật độ cao, cực nhẹ và dẻo dai cho những c...',
-      price: '12.200.000 ₫',
-      priceVal: 12200000,
-      imageUrl: '/images/product-saltiga.png',
-      material: 'Carbon',
-      brandKey: 'Daiwa',
-      ratingCount: 32,
-      menuType: 'gear',
-    },
-    {
-      id: 'sea-3',
-      brand: 'ABU GARCIA',
-      title: 'Bộ Lưỡi Câu Titan Chống Gỉ',
-      description: 'Vật liệu Titan tinh khiết, sắc bén vĩnh viễn, chống ăn...',
-      price: '850.000 ₫',
-      priceVal: 850000,
-      imageUrl: '/images/product-titan-hook.png',
-      badge: 'Mới về',
-      badgeType: 'accent' as const,
-      material: 'Titan',
-      brandKey: 'Abu Garcia',
-      ratingCount: 50,
-      menuType: 'gear',
-    },
-    {
-      id: 'sea-4',
-      brand: 'PENN',
-      title: 'Máy Câu Penn Senator 9/0',
-      description: 'Huyền thoại cho những chuyến săn cá ngừ đại dương...',
-      price: '5.800.000 ₫',
-      priceVal: 5800000,
-      imageUrl: '/images/product-penn.png',
-      material: 'Thép không gỉ',
-      brandKey: 'Penn',
-      ratingCount: 45,
-      menuType: 'gear',
-    },
-    {
-      id: 'sea-5',
-      brand: 'PENN',
-      title: 'Dây Câu Braid X8 Super',
-      description: 'Độ bền vượt trội, siêu mịn giúp giảm ma sát khi quăng...',
-      price: '1.250.000 ₫',
-      priceVal: 1250000,
-      imageUrl: '/images/product-braid.png',
-      material: 'Carbon',
-      brandKey: 'Penn',
-      ratingCount: 71,
-      menuType: 'gear',
-    },
-    {
-      id: 'sea-6',
-      brand: 'WILDSTREAM',
-      title: 'Áo Câu Biển Chống Tia UV',
-      description: 'Vải thun lạnh cao cấp, thoát mồ hôi cực nhanh, chỉ số U...',
-      price: '1.800.000 ₫',
-      priceVal: 1800000,
-      imageUrl: '/images/product-shirt.png',
-      material: 'Vải',
-      brandKey: 'Wildstream',
-      ratingCount: 60,
-      menuType: 'clothing',
-    },
-  ], []);
-
-  // Original mockup products list for Lake Fishing
-  const lakeProducts = useMemo(() => [
-    {
-      id: 'lake-1',
-      brand: 'Shimano',
-      title: 'Cần Câu Lục Shimano Holiday Spin',
-      price: '3.450.000đ',
-      priceVal: 3450000,
-      imageUrl: '/images/product-holiday-spin.png',
-      badge: 'Bán chạy',
-      badgeType: 'default' as const,
-      types: ['Câu Lục'],
-      brandKey: 'Shimano',
-    },
-    {
-      id: 'lake-2',
-      brand: 'Handing',
-      title: 'Cần Câu Đài Handing Long Vân',
-      price: '1.280.000đ',
-      priceVal: 1280000,
-      imageUrl: '/images/product-long-van.png',
-      types: ['Câu Lục', 'Câu Đài'],
-      brandKey: 'Handing',
-    },
-    {
-      id: 'lake-3',
-      brand: 'Kaiwo',
-      title: 'Phao Câu Hồ Titan X-Series',
-      price: '450.000đ',
-      priceVal: 450000,
-      imageUrl: '/images/product-titan-float.png',
-      badge: 'Mới về',
-      badgeType: 'premium' as const,
-      types: ['Câu Lục', 'Câu Đài'],
-      brandKey: 'Kaiwo',
-    },
-    {
-      id: 'lake-4',
-      brand: 'WildStream',
-      title: 'Ghế Câu Địa Hình WildStream Pro',
-      price: '2.150.000đ',
-      priceVal: 2150000,
-      imageUrl: '/images/product-chair-terrain.png',
-      types: ['Câu Lục', 'Câu Đài', 'Câu Lăng Xê'],
-      brandKey: 'WildStream',
-    },
-    {
-      id: 'lake-5',
-      brand: 'Shimano',
-      title: 'Máy Câu Shimano Stradic FM',
-      price: '4.890.000đ',
-      priceVal: 4890000,
-      imageUrl: '/images/product-stradic-reel.png',
-      types: ['Câu Lục', 'Câu Lăng Xê'],
-      brandKey: 'Shimano',
-    },
-    {
-      id: 'lake-6',
-      brand: 'WildStream',
-      title: 'Thùng Câu Cá Đa Năng 36L',
-      price: '1.550.000đ',
-      priceVal: 1550000,
-      imageUrl: '/images/product-box-tackle.png',
-      types: ['Câu Lục', 'Câu Đài', 'Câu Lăng Xê'],
-      brandKey: 'WildStream',
-    },
-  ], []);
-
-  // Original mockup products list for Camping
-  const campingProducts = useMemo(() => [
-    {
-      id: 'camping-1',
-      brand: 'Naturehike',
-      title: 'Lều Cắm Trại 4 Người Peak-4',
-      price: '5.800.000đ',
-      priceVal: 5800000,
-      imageUrl: '/images/product-tent.png',
-      badge: 'Bán chạy',
-      badgeType: 'default' as const,
-      type: 'Lều trại',
-      brandKey: 'Naturehike',
-    },
-    {
-      id: 'camping-2',
-      brand: 'WildStream',
-      title: 'Ghế Dã Ngoại Xếp Gọn WildStream',
-      price: '2.150.000đ',
-      priceVal: 2150000,
-      imageUrl: '/images/product-chair-terrain.png',
-      type: 'Ghế & Thảm',
-      brandKey: 'WildStream',
-    },
-    {
-      id: 'camping-3',
-      brand: 'WildStream',
-      title: 'Thùng Đựng Đồ Dã Ngoại Đa Năng 36L',
-      price: '1.550.000đ',
-      priceVal: 1550000,
-      imageUrl: '/images/product-box-tackle.png',
-      type: 'Phụ kiện',
-      brandKey: 'WildStream',
-    },
-    {
-      id: 'camping-4',
-      brand: 'WildStream',
-      title: 'Áo Khoác Dã Ngoại Chống Tia UV',
-      price: '1.800.000đ',
-      priceVal: 1800000,
-      imageUrl: '/images/product-shirt.png',
-      badge: 'Mới về',
-      badgeType: 'premium' as const,
-      type: 'Trang phục',
-      brandKey: 'WildStream',
-    },
-  ], []);
 
   // Filter handlers
   const handleToggleBrand = (brand: string) => {
@@ -1077,6 +838,7 @@ export default function CategoryPage() {
                     badgeType={product.badgeType}
                     ratingCount={(product as any).ratingCount}
                     onAddToCart={() => handleAddToCart(product)}
+                    onClick={() => router.push(`/product/${product.id}`)}
                   />
                 ))}
               </div>

@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Header from '../../../components/Header';
 import ProductCard from '../../../components/ProductCard';
 import Footer from '../../../components/Footer';
-import { Star, Heart, ShoppingCart, ShieldCheck, Compass, Info, ArrowLeft, ArrowRight, Check, Share2, Edit2, Trash2 } from 'lucide-react';
+import { Star, Heart, ShoppingCart, ShieldCheck, Compass, Info, ArrowLeft, ArrowRight, Share2, Edit2, Trash2 } from 'lucide-react';
 import { reviewApi, cartApi, productApi, getAuthToken } from '../../../lib/api';
 
 export default function ProductDetailPage() {
@@ -15,6 +15,8 @@ export default function ProductDetailPage() {
 
   const [dbProduct, setDbProduct] = useState<any>(null);
   const [loadingDb, setLoadingDb] = useState(true);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
 
   useEffect(() => {
     if (id && !isNaN(Number(id))) {
@@ -22,6 +24,17 @@ export default function ProductDetailPage() {
         try {
           const res = await productApi.getProductById(id as string);
           setDbProduct(res);
+          setSelectedVariantId(res?.variants?.[0]?.id ? Number(res.variants[0].id) : null);
+          if (res?.categoryId) {
+            const related = await productApi.getProducts({
+              categoryId: res.categoryId,
+              isVisible: true,
+              size: 4,
+              sort: ['id,desc'],
+            });
+            const list = Array.isArray(related) ? related : related?.content || [];
+            setRelatedProducts(list.filter((item: any) => Number(item.id) !== Number(id)).slice(0, 3));
+          }
         } catch (err) {
           console.error('Lỗi khi tải chi tiết sản phẩm:', err);
         } finally {
@@ -43,13 +56,12 @@ export default function ProductDetailPage() {
     }
 
     try {
-      if (!dbProduct && isNaN(Number(id))) {
-        alert('Đây là sản phẩm dùng thử (Mock). Vui lòng chọn sản phẩm thực tế từ Cơ sở dữ liệu để mua hàng!');
+      if (!dbProduct || !selectedVariantId) {
+        alert('Sản phẩm hoặc lựa chọn bán hàng không còn tồn tại trong cơ sở dữ liệu.');
         return;
       }
       
-      const vId = dbProduct?.variants?.[0]?.id || Number(id);
-      await cartApi.addItem({ variantId: Number(vId), quantity });
+      await cartApi.addItem({ variantId: selectedVariantId, quantity });
       alert('Đã thêm sản phẩm vào giỏ hàng thành công!');
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('cartUpdated'));
@@ -68,13 +80,12 @@ export default function ProductDetailPage() {
     }
 
     try {
-      if (!dbProduct && isNaN(Number(id))) {
-        alert('Đây là sản phẩm dùng thử (Mock). Vui lòng chọn sản phẩm thực tế từ Cơ sở dữ liệu để mua hàng!');
+      if (!dbProduct || !selectedVariantId) {
+        alert('Sản phẩm hoặc lựa chọn bán hàng không còn tồn tại trong cơ sở dữ liệu.');
         return;
       }
       
-      const vId = dbProduct?.variants?.[0]?.id || Number(id);
-      await cartApi.addItem({ variantId: Number(vId), quantity });
+      await cartApi.addItem({ variantId: selectedVariantId, quantity });
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('cartUpdated'));
       }
@@ -84,8 +95,6 @@ export default function ProductDetailPage() {
     }
   };
 
-  const [selectedColor, setSelectedColor] = useState<'green' | 'orange'>('green');
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isLiked, setIsLiked] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'reviews'>('details');
@@ -151,78 +160,25 @@ export default function ProductDetailPage() {
     }
   };
 
-  // List of images for product display
-  const productImages = [
-    '/images/product-tent.png',
-    '/images/camping.png',
-    '/images/product-chair-terrain.png',
-    '/images/reel-detail.png',
-  ];
-
-  // Specific color options matching requirements
-  const colors = [
-    { id: 'green', name: 'Forest Green', hex: '#1f6c3a', bgClass: 'bg-[#1f6c3a]' },
-    { id: 'orange', name: 'Warm Orange', hex: '#e05600', bgClass: 'bg-[#e05600]' },
-  ];
-
-  // Specifications
-  const specs = [
-    { name: 'Kích thước sử dụng', value: '240 x 210 x 140 cm' },
-    { name: 'Trọng lượng', value: '4.5 kg' },
-    { name: 'Chất liệu vải', value: 'Polyester 190T chống nước PU3000mm' },
-    { name: 'Khung lều', value: 'Sợi thủy tinh dẻo dai 8.5mm' },
-    { name: 'Sức chứa', value: '3 - 4 người' },
-    { name: 'Chỉ số chống nắng', value: 'UPF 50+' },
-  ];
-
-  // Feature highlight blocks with dark image backgrounds
-  const features = [
-    {
-      title: 'Chống thấm 3000mm',
-      subtitle: 'Khô ráo vượt trội',
-      description: 'Lớp phủ PU cao cấp chống nước tuyệt đối, bảo vệ gia đình bạn trong mọi điều kiện giông bão.',
-      bgImage: '/images/camping.png',
-    },
-    {
-      title: 'Thông gió 360',
-      subtitle: 'Thoáng mát tuyệt đối',
-      description: 'Hệ thống lưu thông không khí 2 cửa đối xứng kết hợp lưới mesh chống muỗi giữ lều luôn khô thoáng.',
-      bgImage: '/images/river-fishing.png',
-    },
-    {
-      title: 'Tự bung thông minh',
-      subtitle: 'Lắp đặt dưới 60 giây',
-      description: 'Cơ chế trục xoay thuỷ lực thế hệ mới giúp dựng lều chỉ với một thao tác đẩy nhẹ nhàng.',
-      bgImage: '/images/sea-fishing.png',
-    },
-  ];
-
-  // Related products under the fold
-  const relatedProducts = [
-    {
-      title: 'Cần câu suối Carbon River Master UL',
-      price: '1.250.000 ₫',
-      imageUrl: '/images/product-buggy.png',
-      cardStyle: 'minimal' as const,
-      badge: 'Bán chạy',
-      badgeType: 'default' as const,
-    },
-    {
-      title: 'Ghế dã ngoại xếp gọn Naturehike',
-      price: '750.000 ₫',
-      imageUrl: '/images/product-chair-terrain.png',
-      cardStyle: 'detailed' as const,
-      badge: 'Mới về',
-      badgeType: 'accent' as const,
-    },
-    {
-      title: 'Hòm đựng đồ dã ngoại 36L WildStream',
-      price: '1.150.000 ₫',
-      imageUrl: '/images/product-box-tackle.png',
-      cardStyle: 'lake' as const,
-      brand: 'WildStream',
-    },
-  ];
+  const selectedVariant = dbProduct?.variants?.find(
+    (variant: any) => Number(variant.id) === selectedVariantId
+  ) || dbProduct?.variants?.[0];
+  const selectedBasePrice = Number(selectedVariant?.basePrice || 0);
+  const selectedDiscountPrice = Number(selectedVariant?.discountPrice || 0);
+  const selectedPrice = selectedDiscountPrice > 0 && selectedDiscountPrice < selectedBasePrice
+    ? selectedDiscountPrice
+    : selectedBasePrice;
+  const averageRating = reviews.length > 0
+    ? reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length
+    : 0;
+  const specs = dbProduct ? [
+    { name: 'Mã sản phẩm', value: dbProduct.code || '—' },
+    { name: 'Loại sản phẩm', value: dbProduct.categoryName || '—' },
+    { name: 'Thương hiệu', value: dbProduct.brandName || '—' },
+    { name: 'Nhà cung cấp', value: dbProduct.supplierName || '—' },
+    { name: 'Chất liệu', value: dbProduct.material || '—' },
+    { name: 'Tồn kho', value: `${selectedVariant?.stockQuantity ?? 0} sản phẩm` },
+  ] : [];
 
   const handleShare = () => {
     if (typeof window !== 'undefined') {
@@ -245,13 +201,20 @@ export default function ProductDetailPage() {
           <span>&gt;</span>
           <a href="/category" className="hover:text-primary transition-colors">{dbProduct?.categoryName || 'Sản phẩm'}</a>
           <span>&gt;</span>
-          <span className="text-on-surface font-semibold line-clamp-1">{dbProduct?.name || 'Lều Horizon 4 người'}</span>
+          <span className="text-on-surface font-semibold line-clamp-1">{dbProduct?.name || 'Đang tải sản phẩm...'}</span>
         </nav>
 
         {loadingDb ? (
           <div className="flex flex-col items-center justify-center p-xl min-h-[50vh]">
             <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin mb-sm"></div>
             <p className="text-body-md text-on-surface-variant/80 font-sans">Đang tải thông tin sản phẩm...</p>
+          </div>
+        ) : !dbProduct ? (
+          <div className="py-xl text-center">
+            <h1 className="text-headline-md font-bold">Không tìm thấy sản phẩm</h1>
+            <button onClick={() => router.push('/category')} className="mt-md text-primary font-bold">
+              Quay lại danh sách sản phẩm
+            </button>
           </div>
         ) : (
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-md md:gap-lg mb-xl">
@@ -262,8 +225,8 @@ export default function ProductDetailPage() {
             {/* Hero Main Image Container */}
             <div className="relative aspect-[4/3] bg-surface-container-low rounded-2xl overflow-hidden shadow-ambient group border border-outline-variant/10">
               <img
-                src={dbProduct?.image || productImages[selectedImageIndex]}
-                alt={dbProduct?.name || "Lều cắm trại Horizon"}
+                src={dbProduct.image || '/images/product-rod.png'}
+                alt={dbProduct.name}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
               />
 
@@ -292,24 +255,6 @@ export default function ProductDetailPage() {
               </button>
             </div>
 
-            {/* Thumbnail Navigation Row */}
-            <div className="grid grid-cols-4 gap-xs sm:gap-sm">
-              {productImages.map((img, idx) => {
-                const isActive = selectedImageIndex === idx;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setSelectedImageIndex(idx)}
-                    className={`aspect-[4/3] rounded-xl overflow-hidden bg-surface-container border-2 transition-all duration-200 ${
-                      isActive ? 'border-primary shadow-sm scale-[0.98]' : 'border-transparent opacity-80 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={img} alt={`Lều Horizon ảnh ${idx + 1}`} className="w-full h-full object-cover" />
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* RIGHT SIDE: Product Info */}
@@ -318,78 +263,60 @@ export default function ProductDetailPage() {
               {/* Pill-shaped status badge */}
               <div className="flex items-center mb-xs">
                 <span className="bg-[#a4f1b2] text-[#24703e] text-[10px] px-3.5 py-1 rounded-full font-sans font-bold tracking-wider uppercase shadow-sm select-none">
-                  Bán chạy nhất
+                  {dbProduct.isVisible ? 'Đang bán' : 'Tạm ẩn'}
                 </span>
               </div>
 
               {/* Bold headline */}
               <h1 className="text-headline-md md:text-headline-lg font-bold text-on-surface tracking-tight leading-tight mb-sm">
-                {dbProduct?.name || 'Lều cắm trại 4 người Horizon'}
+                {dbProduct.name}
               </h1>
 
               {/* Rating and Reviews */}
               <div className="flex items-center gap-xs mb-md border-b border-outline-variant/10 pb-sm">
                 <div className="flex items-center text-amber-500">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="w-4.5 h-4.5 fill-current text-amber-500" />
+                    <Star key={i} className={`w-4.5 h-4.5 ${i < Math.round(averageRating) ? 'fill-current text-amber-500' : 'text-slate-300'}`} />
                   ))}
                 </div>
                 <span className="text-label-sm text-on-surface-variant font-medium">
-                  5.0 (128 đánh giá)
+                  {averageRating.toFixed(1)} ({reviews.length} đánh giá)
                 </span>
-                <span className="text-outline-variant">|</span>
-                <span className="text-label-sm text-secondary font-semibold">Đã bán 450+</span>
               </div>
 
               {/* Price in Ocean Blue (#00288e) */}
               <div className="mb-md">
                 <span className="text-headline-lg font-extrabold text-[#00288e] tracking-tight">
-                  {dbProduct ? (
-                    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-                      dbProduct?.variants?.[0]?.discountPrice > 0 ? dbProduct.variants[0].discountPrice : (dbProduct?.variants?.[0]?.basePrice ?? dbProduct?.variants?.[0]?.price ?? dbProduct.basePrice ?? dbProduct.price ?? 5000)
-                    )
-                  ) : '3.450.000 ₫'}
+                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedPrice)}
                 </span>
-                {(!dbProduct || (dbProduct?.variants?.[0]?.discountPrice > 0 && dbProduct?.variants?.[0]?.discountPrice < (dbProduct?.variants?.[0]?.basePrice ?? dbProduct?.variants?.[0]?.price))) && (
+                {selectedDiscountPrice > 0 && selectedDiscountPrice < selectedBasePrice && (
                   <span className="text-label-sm text-on-surface-variant line-through ml-sm font-normal">
-                    {dbProduct ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dbProduct?.variants?.[0]?.basePrice ?? dbProduct?.variants?.[0]?.price ?? dbProduct.basePrice ?? dbProduct.price ?? 5000) : '4.200.000 ₫'}
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedBasePrice)}
                   </span>
                 )}
               </div>
 
               {/* Short promo description */}
               <p className="text-body-md text-on-surface-variant leading-relaxed mb-md">
-                {dbProduct?.description || 'Horizon 4 là sự kết hợp hoàn hảo giữa thiết kế tự bung thông minh, khả năng thông gió 360 độ và chống thấm vượt trội lên đến 3000mm. Sự lựa chọn lý tưởng cho các buổi dã ngoại gia đình hay dã ngoại nhóm ngoài trời.'}
+                {dbProduct.description || 'Sản phẩm chưa có mô tả.'}
               </p>
 
-              {/* Variants: Visual circular swatches for colors */}
+              {/* Sellable variants come directly from the database. */}
               <div className="mb-md border-t border-outline-variant/10 pt-sm">
                 <span className="text-label-md text-on-surface font-bold block mb-xs">
-                  Màu sắc: <span className="font-semibold text-on-surface-variant">{colors.find(c => c.id === selectedColor)?.name}</span>
+                  Lựa chọn sản phẩm
                 </span>
-                <div className="flex items-center gap-sm">
-                  {colors.map((color) => {
-                    const isSelected = selectedColor === color.id;
-                    return (
-                      <button
-                        key={color.id}
-                        type="button"
-                        onClick={() => setSelectedColor(color.id as 'green' | 'orange')}
-                        className={`w-9 h-9 rounded-full ${color.bgClass} flex items-center justify-center relative cursor-pointer focus:outline-none transition-transform active:scale-95`}
-                        title={color.name}
-                      >
-                        {isSelected && (
-                          <span className="absolute inset-0 rounded-full border-2 border-white flex items-center justify-center">
-                            <Check className="w-4 h-4 text-white font-bold" />
-                          </span>
-                        )}
-                        <span className={`absolute inset-[-4px] rounded-full border-2 transition-colors duration-200 ${
-                          isSelected ? 'border-primary' : 'border-transparent'
-                        }`} />
-                      </button>
-                    );
-                  })}
-                </div>
+                <select
+                  value={selectedVariantId || ''}
+                  onChange={(event) => setSelectedVariantId(Number(event.target.value))}
+                  className="w-full border border-outline-variant/40 rounded-lg px-3 py-2 bg-white"
+                >
+                  {(dbProduct.variants || []).map((variant: any) => (
+                    <option key={variant.id} value={variant.id} disabled={Number(variant.stockQuantity) <= 0}>
+                      {variant.variantName || variant.sku} — Còn {variant.stockQuantity || 0}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Quantity selector */}
@@ -497,15 +424,9 @@ export default function ProductDetailPage() {
                 <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-2xl p-md shadow-sm text-left">
                   {activeTab === 'details' ? (
                     <article className="prose prose-sm text-on-surface-variant max-w-none leading-relaxed space-y-sm">
-                      <p>
-                        Lều dã ngoại tự bung Horizon là giải pháp lý tưởng dành cho những ai yêu thích việc cắm trại dã ngoại nhưng không muốn tốn nhiều thời gian cho công đoạn lắp đặt. Với công nghệ tự động lò xo áp lực thế hệ mới, bạn có thể tự mình dựng lều chỉ trong vài chục giây.
-                      </p>
-                      <p className="font-semibold text-on-surface">Các ưu điểm nổi bật:</p>
-                      <ul className="list-disc pl-5 space-y-1">
-                        <li>Lớp vải phủ Polyester phủ keo bạc nâng cao hệ số cản tia UV hại da đến 99%.</li>
-                        <li>Đường may được ép keo nhiệt chống rò rỉ nước ở các vị trí khớp nối.</li>
-                        <li>Chân đế thiết kế gia cường giúp cố định lều vững vàng trên cát biển hay đất bùn lầy.</li>
-                      </ul>
+                      <p>{dbProduct.description || 'Sản phẩm chưa có mô tả chi tiết.'}</p>
+                      {dbProduct.material && <p><strong>Chất liệu:</strong> {dbProduct.material}</p>}
+                      {dbProduct.action && <p><strong>Thông tin:</strong> {dbProduct.action}</p>}
                     </article>
                   ) : (
                     <div className="space-y-md">
@@ -573,7 +494,7 @@ export default function ProductDetailPage() {
                     <Compass className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                     <div>
                       <h4 className="text-label-sm font-bold text-on-surface">Hỗ trợ trọn đời</h4>
-                      <p className="text-[11px] text-on-surface-variant">Hỗ trợ sửa chữa thay thế linh kiện khung sườn lều ưu đãi lâu dài.</p>
+                      <p className="text-[11px] text-on-surface-variant">Hỗ trợ thông tin sử dụng và chính sách sau bán hàng.</p>
                     </div>
                   </div>
                 </div>
@@ -586,55 +507,16 @@ export default function ProductDetailPage() {
                   <span className="text-[9px] text-on-surface-variant font-sans font-bold">Chính Hãng</span>
                 </div>
                 <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-xs flex flex-col items-center justify-center text-center">
-                  <span className="text-body-lg text-secondary font-bold">PU3000</span>
-                  <span className="text-[9px] text-on-surface-variant font-sans font-bold">Chống Nước</span>
+                  <span className="text-body-lg text-secondary font-bold">{selectedVariant?.stockQuantity ?? 0}</span>
+                  <span className="text-[9px] text-on-surface-variant font-sans font-bold">Còn trong kho</span>
                 </div>
                 <div className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-xs flex flex-col items-center justify-center text-center">
-                  <span className="text-body-lg text-accent-orange font-bold">UPF50+</span>
-                  <span className="text-[9px] text-on-surface-variant font-sans font-bold">Chống Nắng</span>
+                  <span className="text-body-lg text-accent-orange font-bold">DB</span>
+                  <span className="text-[9px] text-on-surface-variant font-sans font-bold">Giá trực tiếp</span>
                 </div>
               </div>
             </div>
 
-          </div>
-        </section>
-
-        {/* TÍNH NĂNG NỔI BẬT SECTION: Dark Image Background cards */}
-        <section className="border-t border-outline-variant/20 pt-lg mb-xl text-left">
-          <h2 className="text-headline-md font-bold text-on-surface tracking-tight mb-md">
-            Tính năng nổi bật
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-sm md:gap-gutter">
-            {features.map((feature, i) => (
-              <div
-                key={i}
-                className="group h-[320px] rounded-2xl overflow-hidden relative shadow-ambient hover:shadow-ambient-hover transition-all duration-300 block"
-              >
-                {/* Background Image */}
-                <img
-                  src={feature.bgImage}
-                  alt={feature.title}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
-                />
-
-                {/* Dark Vignette Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-
-                {/* Card Content at bottom */}
-                <div className="absolute inset-0 p-md flex flex-col justify-end text-left z-10">
-                  <span className="text-[10px] text-accent-orange font-bold uppercase tracking-wider mb-xs">
-                    {feature.subtitle}
-                  </span>
-                  <h3 className="text-headline-md font-bold text-white tracking-tight leading-tight mb-xs">
-                    {feature.title}
-                  </h3>
-                  <p className="text-label-sm text-surface-dim font-sans opacity-85">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
 
@@ -652,14 +534,16 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-sm md:gap-gutter">
             {relatedProducts.map((p, idx) => (
               <ProductCard
-                key={idx}
-                title={p.title}
-                price={p.price}
-                imageUrl={p.imageUrl}
-                cardStyle={p.cardStyle}
-                badge={p.badge}
-                badgeType={p.badgeType}
-                brand={p.brand}
+                key={p.id || idx}
+                id={p.id}
+                title={p.name}
+                price={new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                  Number(p.variants?.[0]?.discountPrice || p.variants?.[0]?.basePrice || 0)
+                )}
+                imageUrl={p.image || '/images/product-rod.png'}
+                cardStyle="minimal"
+                brand={p.brandName}
+                onClick={() => router.push(`/product/${p.id}`)}
               />
             ))}
           </div>

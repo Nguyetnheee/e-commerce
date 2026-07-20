@@ -37,7 +37,18 @@ export default function ProductCard({
   const [isLiked, setIsLiked] = useState(false);
 
   return (
-    <div className="group w-full bg-surface-container-lowest rounded-2xl shadow-ambient hover:shadow-ambient-hover border border-outline-variant/10 overflow-hidden transition-all duration-300 flex flex-col p-sm">
+    <div
+      className={`group w-full bg-surface-container-lowest rounded-2xl shadow-ambient hover:shadow-ambient-hover border border-outline-variant/10 overflow-hidden transition-all duration-300 flex flex-col p-sm ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (onClick && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      role={onClick ? 'link' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
       {/* Product Image Section */}
       <div className="relative aspect-[4/5] bg-surface-container-low overflow-hidden rounded-xl">
         {imageUrl ? (
@@ -72,6 +83,7 @@ export default function ProductCard({
             type="button"
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               setIsLiked(!isLiked);
             }}
             className="absolute top-sm right-sm w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center text-outline hover:text-red-500 hover:scale-105 active:scale-95 transition-all duration-200"
@@ -135,7 +147,10 @@ export default function ProductCard({
             
             <button 
               type="button" 
-              onClick={onAddToCart}
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddToCart?.(event);
+              }}
               className="w-full bg-[#00288e] hover:bg-[#1e40af] text-white text-label-sm font-semibold rounded-md py-2.5 px-md flex items-center justify-center gap-xs shadow-sm hover:shadow transition-all duration-200 focus-visible:outline-none cursor-pointer"
             >
               <ShoppingCart className="w-4 h-4" />
@@ -151,7 +166,10 @@ export default function ProductCard({
             
             <button 
               type="button" 
-              onClick={onAddToCart}
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddToCart?.(event);
+              }}
               className="bg-[#00288e] hover:bg-[#1e40af] text-white rounded-md p-2 shadow-sm hover:shadow transition-all duration-200 focus-visible:outline-none flex items-center justify-center cursor-pointer"
               aria-label="Thêm vào giỏ"
             >
@@ -167,7 +185,10 @@ export default function ProductCard({
             
             <button 
               type="button" 
-              onClick={onAddToCart}
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddToCart?.(event);
+              }}
               className="border border-outline-variant/60 hover:border-primary hover:bg-primary/5 text-on-surface hover:text-primary rounded-md p-2 transition-all duration-200 focus-visible:outline-none cursor-pointer"
               aria-label="Thêm vào giỏ"
             >
