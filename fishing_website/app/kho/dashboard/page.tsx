@@ -162,7 +162,13 @@ export default function KhoDashboardPage() {
     try {
       setLoadingOrders(true);
       const packingRes = await adminApi.getOrders('PACKING');
-      setOrders(Array.isArray(packingRes) ? packingRes : []);
+      const sortedOrders = Array.isArray(packingRes) ? [...packingRes].sort((a: any, b: any) => {
+        const timeA = a.orderDate || a.createdAt ? new Date(a.orderDate || a.createdAt).getTime() : 0;
+        const timeB = b.orderDate || b.createdAt ? new Date(b.orderDate || b.createdAt).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return Number(b.id) - Number(a.id);
+      }) : [];
+      setOrders(sortedOrders);
     } catch (e) {
       console.error('Lỗi khi tải đơn hàng kho:', e);
     } finally {

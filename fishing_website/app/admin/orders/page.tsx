@@ -161,7 +161,7 @@ export default function AdminOrdersPage() {
     });
   };
 
-  // Filter orders
+  // Filter and sort orders (newest first)
   const filteredOrders = orders.filter((o) => {
     const matchesSearch = 
       String(o.id).includes(searchQuery) ||
@@ -170,6 +170,11 @@ export default function AdminOrdersPage() {
     
     if (selectedStatus === 'ALL') return matchesSearch;
     return o.status === selectedStatus && matchesSearch;
+  }).sort((a, b) => {
+    const timeA = a.orderDate || a.createdAt ? new Date(a.orderDate || a.createdAt).getTime() : 0;
+    const timeB = b.orderDate || b.createdAt ? new Date(b.orderDate || b.createdAt).getTime() : 0;
+    if (timeA !== timeB) return timeB - timeA;
+    return Number(b.id) - Number(a.id);
   });
 
   const getStatusBadge = (status: string) => {

@@ -101,6 +101,11 @@ export default function AdminDashboardPage() {
           if (o.status !== 'PENDING') return false;
           if (o.paymentMethod === 'PAYOS' && o.paymentStatus !== 'PAID') return false;
           return true;
+        }).sort((a: any, b: any) => {
+          const timeA = a.orderDate || a.createdAt ? new Date(a.orderDate || a.createdAt).getTime() : 0;
+          const timeB = b.orderDate || b.createdAt ? new Date(b.orderDate || b.createdAt).getTime() : 0;
+          if (timeA !== timeB) return timeB - timeA;
+          return Number(b.id) - Number(a.id);
         });
         setPendingOrders(pending);
       }
