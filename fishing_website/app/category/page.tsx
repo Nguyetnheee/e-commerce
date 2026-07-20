@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import ProductCard from '../../components/ProductCard';
 import Footer from '../../components/Footer';
-import { ChevronLeft, ChevronRight, Filter, LayoutGrid, Award, Shield, Tag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { productApi, cartApi, getAuthToken } from '../../lib/api';
 
 export default function CategoryPage() {
@@ -117,8 +117,7 @@ export default function CategoryPage() {
   const [selectedPrices, setSelectedPrices] = useState<string[]>([]);
   const [selectedActions, setSelectedActions] = useState<string[]>([]); // For River action (Fast/Moderate/Slow)
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]); // For Sea materials
-  const [activeMenuType, setActiveMenuType] = useState<string>('all'); // For Sea menu items
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]); // For Lake fishing types (Câu Lục, Câu Đài, Câu Lăng Xê)
+  const [selectedProductType, setSelectedProductType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
 
   // Reset/Set initial filters when changing active hash
@@ -127,9 +126,7 @@ export default function CategoryPage() {
     setSelectedPrices([]);
     setSelectedActions([]);
     setSelectedMaterials([]);
-    setActiveMenuType('all');
-    
-    setSelectedTypes([]);
+    setSelectedProductType('all');
   }, [activeHash]);
 
   // Filter handlers
@@ -159,12 +156,6 @@ export default function CategoryPage() {
   const handleToggleMaterial = (material: string) => {
     setSelectedMaterials(prev =>
       prev.includes(material) ? prev.filter(m => m !== material) : [...prev, material]
-    );
-  };
-
-  const handleToggleType = (type: string) => {
-    setSelectedTypes(prev =>
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     );
   };
 
@@ -209,11 +200,23 @@ export default function CategoryPage() {
     return []; // No mock fallback
   }, [dbProducts, activeHash]);
 
+  const productTypes = useMemo(
+    () => Array.from(new Set(
+      activeProducts
+        .map(product => product.categoryName)
+        .filter((name): name is string => Boolean(name))
+    )).sort((a, b) => a.localeCompare(b, 'vi')),
+    [activeProducts]
+  );
+
   // Filter and sort computation
   const filteredProducts = useMemo(() => {
+    const productsByType = selectedProductType === 'all'
+      ? activeProducts
+      : activeProducts.filter(product => product.categoryName === selectedProductType);
+
     if (activeHash === 'sea') {
-      let result = activeProducts.filter(product => {
-        if (activeMenuType !== 'all' && product.menuType !== activeMenuType) return false;
+      let result = productsByType.filter(product => {
         if (selectedBrands.length > 0 && !selectedBrands.some(b => b.toLowerCase() === product.brandKey.toLowerCase())) return false;
         if (selectedMaterials.length > 0 && !selectedMaterials.includes(product.material)) return false;
         
@@ -234,10 +237,7 @@ export default function CategoryPage() {
       return result;
 
     } else if (activeHash === 'lake') {
-      let result = activeProducts.filter(product => {
-        // Fishing type checkbox filter
-        if (selectedTypes.length > 0 && product.types && !product.types.some((t: any) => selectedTypes.includes(t))) return false;
-
+      let result = productsByType.filter(product => {
         // Brand checkbox filter
         if (selectedBrands.length > 0 && !selectedBrands.some(b => b.toLowerCase() === product.brandKey.toLowerCase())) return false;
 
@@ -259,10 +259,7 @@ export default function CategoryPage() {
       return result;
 
     } else if (activeHash === 'camping') {
-      let result = activeProducts.filter(product => {
-        // Camping type checkbox filter
-        if (selectedTypes.length > 0 && !selectedTypes.includes(product.type)) return false;
-
+      let result = productsByType.filter(product => {
         // Brand checkbox filter
         if (selectedBrands.length > 0 && !selectedBrands.some(b => b.toLowerCase() === product.brandKey.toLowerCase())) return false;
 
@@ -285,7 +282,7 @@ export default function CategoryPage() {
 
     } else {
       // River filtering logic
-      return activeProducts.filter(product => {
+      return productsByType.filter(product => {
         if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false;
         if (selectedActions.length > 0 && !selectedActions.includes(product.action)) return false;
 
@@ -301,7 +298,7 @@ export default function CategoryPage() {
         return true;
       });
     }
-  }, [activeHash, activeProducts, selectedBrands, selectedPrices, selectedActions, selectedMaterials, activeMenuType, selectedTypes, sortBy]);
+  }, [activeHash, activeProducts, selectedBrands, selectedPrices, selectedActions, selectedMaterials, selectedProductType, sortBy]);
 
   return (
     <div className="min-h-screen bg-background text-on-surface flex flex-col font-sans">
@@ -366,16 +363,25 @@ export default function CategoryPage() {
           {/* Right Header Controls */}
           <div className="flex items-center justify-between md:justify-end gap-md mt-xs md:mt-0 w-full md:w-auto">
             <span className="text-label-sm text-on-surface-variant font-sans">
-              Hiển thị {
-                activeHash === 'lake' && 
-                selectedTypes.includes('Câu Lục') && 
-                selectedTypes.length === 1 && 
-                selectedBrands.length === 0 && 
-                selectedPrices.length === 0
-                  ? 24 
-                  : filteredProducts.length
-              } sản phẩm
+              Hiển thị {filteredProducts.length} sản phẩm
             </span>
+
+            <div className="flex items-center gap-xs">
+              <label htmlFor="product-type-filter" className="text-label-sm text-on-surface-variant font-sans hidden md:inline">
+                Loại sản phẩm:
+              </label>
+              <select
+                id="product-type-filter"
+                value={selectedProductType}
+                onChange={(event) => setSelectedProductType(event.target.value)}
+                className="bg-surface-container-lowest border border-outline-variant/40 rounded-md py-1 px-3 text-label-sm text-on-surface focus:outline-none focus:border-primary font-sans cursor-pointer max-w-56"
+              >
+                <option value="all">Tất cả loại sản phẩm</option>
+                {productTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
             
             {/* Sort dropdown */}
             <div className="flex items-center gap-xs">
@@ -418,66 +424,6 @@ export default function CategoryPage() {
                     <h3 className="text-label-md font-bold text-on-surface uppercase tracking-wider">
                       Bộ Lọc
                     </h3>
-                  </div>
-                )}
-
-                {/* Filter section for Lake: LOẠI HÌNH CÂU */}
-                {activeHash === 'lake' && (
-                  <div className="mb-md border-b border-outline-variant/20 pb-sm">
-                    <h4 className="text-label-sm font-bold text-on-surface uppercase mb-xs font-sans tracking-wide">
-                      Loại hình câu
-                    </h4>
-                    <div className="flex flex-col gap-xs font-sans text-label-sm text-on-surface-variant">
-                      <label className="flex items-center gap-sm cursor-pointer select-none">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedTypes.includes('Câu Lục')}
-                          onChange={() => handleToggleType('Câu Lục')}
-                          className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                        />
-                        <span>Câu Lục</span>
-                      </label>
-                      <label className="flex items-center gap-sm cursor-pointer select-none">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedTypes.includes('Câu Đài')}
-                          onChange={() => handleToggleType('Câu Đài')}
-                          className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                        />
-                        <span>Câu Đài</span>
-                      </label>
-                      <label className="flex items-center gap-sm cursor-pointer select-none">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedTypes.includes('Câu Lăng Xê')}
-                          onChange={() => handleToggleType('Câu Lăng Xê')}
-                          className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                        />
-                        <span>Câu Lăng Xê</span>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {/* Filter section for Camping: LOẠI SẢN PHẨM */}
-                {activeHash === 'camping' && (
-                  <div className="mb-md border-b border-outline-variant/20 pb-sm">
-                    <h4 className="text-label-sm font-bold text-on-surface uppercase mb-xs font-sans tracking-wide">
-                      Loại sản phẩm
-                    </h4>
-                    <div className="flex flex-col gap-xs font-sans text-label-sm text-on-surface-variant">
-                      {['Lều trại', 'Ghế & Thảm', 'Phụ kiện', 'Trang phục'].map((type) => (
-                        <label key={type} className="flex items-center gap-sm cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedTypes.includes(type)}
-                            onChange={() => handleToggleType(type)}
-                            className="w-4 h-4 border-outline-variant text-primary rounded focus:ring-primary/45"
-                          />
-                          <span>{type}</span>
-                        </label>
-                      ))}
-                    </div>
                   </div>
                 )}
 
@@ -744,59 +690,6 @@ export default function CategoryPage() {
 
               </div>
 
-              {/* SECONDARY SIDEBAR MENU ITEMS FOR SEA ONLY */}
-              {activeHash === 'sea' && (
-                <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-xs text-left shadow-ambient flex flex-col gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveMenuType('all')}
-                    className={`flex items-center gap-sm text-label-sm font-semibold py-2.5 px-sm rounded-xl w-full text-left transition-all ${
-                      activeMenuType === 'all' 
-                        ? 'bg-primary/10 text-primary' 
-                        : 'text-on-surface-variant hover:bg-surface-container-low'
-                    }`}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                    <span>Tất cả trang bị</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveMenuType('gear')}
-                    className={`flex items-center gap-sm text-label-sm font-semibold py-2.5 px-sm rounded-xl w-full text-left transition-all ${
-                      activeMenuType === 'gear' 
-                        ? 'bg-primary/10 text-primary' 
-                        : 'text-on-surface-variant hover:bg-surface-container-low'
-                    }`}
-                  >
-                    <Award className="w-4 h-4" />
-                    <span>Cần & Máy</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveMenuType('clothing')}
-                    className={`flex items-center gap-sm text-label-sm font-semibold py-2.5 px-sm rounded-xl w-full text-left transition-all ${
-                      activeMenuType === 'clothing' 
-                        ? 'bg-primary/10 text-primary' 
-                        : 'text-on-surface-variant hover:bg-surface-container-low'
-                    }`}
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span>Trang phục</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveMenuType('promo')}
-                    className={`flex items-center gap-sm text-label-sm font-semibold py-2.5 px-sm rounded-xl w-full text-left transition-all ${
-                      activeMenuType === 'promo' 
-                        ? 'bg-primary/10 text-primary' 
-                        : 'text-on-surface-variant hover:bg-surface-container-low'
-                    }`}
-                  >
-                    <Tag className="w-4 h-4" />
-                    <span>Khuyến mãi</span>
-                  </button>
-                </div>
-              )}
             </div>
           </aside>
 
@@ -856,8 +749,7 @@ export default function CategoryPage() {
                     setSelectedPrices([]);
                     setSelectedActions([]);
                     setSelectedMaterials([]);
-                    setActiveMenuType('all');
-                    setSelectedTypes(activeHash === 'lake' ? ['Câu Lục'] : []);
+                    setSelectedProductType('all');
                   }}
                   className="bg-primary text-white font-sans text-label-sm font-semibold rounded-md py-2 px-md hover:bg-primary-container transition-all"
                 >
